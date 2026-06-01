@@ -1,0 +1,6 @@
+export { agendaMock } from './agenda.mock'
+export { authMock } from './auth.mock'
+export { cajaMock } from './caja.mock'
+export { equipoMock } from './equipo.mock'
+export { inventarioMock } from './inventario.mock'
+export { serviciosMock } from './servicios.mock'
