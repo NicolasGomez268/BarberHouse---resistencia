@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import type { Barbero } from '../types'
+import { useEquipo } from '../features/equipo/hooks/useEquipo'
+import type { Barbero, HorarioDia, HorarioSemanal } from '../types'
 
 type BarberoForm = {
   nombre: string
@@ -18,49 +19,6 @@ type DaySchedule = {
   breakStart: string
   breakEnd: string
 }
-
-const initialBarberos: Barbero[] = [
-  {
-    id: 'barbero-1',
-    nombre: 'Carlos Sando',
-    telefono: '+5493624000001',
-    activo: true,
-    esDueno: false,
-    porcentajeCasa: 40,
-    fotoUrl:
-      'https://images.unsplash.com/photo-1621605815971-fbc98d665033?auto=format&fit=crop&w=300&q=80',
-  },
-  {
-    id: 'barbero-2',
-    nombre: 'Diego Martínez',
-    telefono: '+5493624000002',
-    activo: true,
-    esDueno: false,
-    porcentajeCasa: 40,
-    fotoUrl:
-      'https://images.unsplash.com/photo-1599351431202-1e0f0137899a?auto=format&fit=crop&w=300&q=80',
-  },
-  {
-    id: 'barbero-3',
-    nombre: 'Juan Pérez',
-    telefono: '+5493624000003',
-    activo: true,
-    esDueno: false,
-    porcentajeCasa: 40,
-    fotoUrl:
-      'https://images.unsplash.com/photo-1585747860715-2ba37e788b70?auto=format&fit=crop&w=300&q=80',
-  },
-  {
-    id: 'barbero-4',
-    nombre: 'Mario',
-    telefono: '+5493624000004',
-    activo: false,
-    esDueno: false,
-    porcentajeCasa: 40,
-    fotoUrl:
-      'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&w=300&q=80',
-  },
-]
 
 const emptyForm: BarberoForm = {
   nombre: '',
@@ -80,25 +38,81 @@ const defaultSchedule: DaySchedule[] = [
   { day: 'Domingo', works: true, start: '09:00', end: '00:00', breakStart: '', breakEnd: '' },
 ]
 
-function createAvatarUrl(name: string) {
-  return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=1a1a2e&color=f5c518&bold=true`
-}
-
 function cloneDefaultSchedule() {
   return defaultSchedule.map((schedule) => ({ ...schedule }))
 }
 
+function isBarberActive(barbero: Barbero) {
+  return barbero.isActive ?? barbero.activo ?? false
+}
+
+function isBarberOwner(barbero: Barbero) {
+  return barbero.isOwner ?? barbero.esDueno ?? false
+}
+
+function scheduleToDraft(horario?: HorarioSemanal) {
+  if (!horario) return cloneDefaultSchedule()
+
+  return defaultSchedule.map((schedule, index) => {
+    const dia = horario.dias[index]
+    return {
+      day: schedule.day,
+      works: dia?.activo ?? schedule.works,
+      start: dia?.horaInicio ?? schedule.start,
+      end: dia?.horaFin ?? schedule.end,
+      breakStart: dia?.descansoInicio ?? '',
+      breakEnd: dia?.descansoFin ?? '',
+    }
+  })
+}
+
+function draftToHorario(barberoId: string, scheduleDraft: DaySchedule[]): HorarioSemanal {
+  const dias: Record<number, HorarioDia> = {}
+
+  scheduleDraft.forEach((schedule, index) => {
+    dias[index] = {
+      activo: schedule.works,
+      horaInicio: schedule.start,
+      horaFin: schedule.end,
+      descansoInicio: schedule.breakStart || undefined,
+      descansoFin: schedule.breakEnd || undefined,
+    }
+  })
+
+  return { barberoId, dias }
+}
+
 export function EquipoPage() {
-  const [barberos, setBarberos] = useState<Barbero[]>(initialBarberos)
+  const { barberos, horarios, agregarBarbero, actualizarBarbero, toggleActivo, actualizarHorario, eliminarBarbero } = useEquipo()
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [editingBarber, setEditingBarber] = useState<Barbero | null>(null)
+  const [deletingBarber, setDeletingBarber] = useState<Barbero | null>(null)
   const [form, setForm] = useState<BarberoForm>(emptyForm)
   const [selectedScheduleBarber, setSelectedScheduleBarber] = useState<Barbero | null>(null)
   const [scheduleDraft, setScheduleDraft] = useState<DaySchedule[]>(cloneDefaultSchedule)
-  const [barberSchedules, setBarberSchedules] = useState<Record<string, DaySchedule[]>>({})
 
   function closeModal() {
     setIsModalOpen(false)
+    setEditingBarber(null)
     setForm(emptyForm)
+  }
+
+  function openCreateModal() {
+    setEditingBarber(null)
+    setForm(emptyForm)
+    setIsModalOpen(true)
+  }
+
+  function openEditModal(barbero: Barbero) {
+    setEditingBarber(barbero)
+    setForm({
+      nombre: barbero.nombre,
+      telefono: barbero.telefono ?? '',
+      activo: isBarberActive(barbero),
+      esDueno: isBarberOwner(barbero),
+      porcentajeCasa: String(barbero.porcentajeCasa),
+    })
+    setIsModalOpen(true)
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -108,23 +122,31 @@ export function EquipoPage() {
     if (!nombre) return
 
     const porcentajeCasa = Number(form.porcentajeCasa)
-    const newBarbero: Barbero = {
-      id: crypto.randomUUID(),
+    const payload = {
       nombre,
       telefono: form.telefono.trim() || undefined,
       activo: form.activo,
+      isActive: form.activo,
       esDueno: form.esDueno,
+      isOwner: form.esDueno,
       porcentajeCasa: Number.isFinite(porcentajeCasa) ? porcentajeCasa : 40,
-      fotoUrl: createAvatarUrl(nombre),
+      colorHex: '#f5c518',
+      sucursalId: editingBarber?.sucursalId ?? 's1',
+      fechaIngreso: editingBarber?.fechaIngreso ?? new Date().toISOString().slice(0, 10),
     }
 
-    setBarberos((currentBarberos) => [newBarbero, ...currentBarberos])
+    if (editingBarber) {
+      actualizarBarbero(editingBarber.id, payload)
+    } else {
+      agregarBarbero(payload)
+    }
+
     closeModal()
   }
 
   function openScheduleModal(barbero: Barbero) {
     setSelectedScheduleBarber(barbero)
-    setScheduleDraft((barberSchedules[barbero.id] ?? cloneDefaultSchedule()).map((schedule) => ({ ...schedule })))
+    setScheduleDraft(scheduleToDraft(horarios.find((horario) => horario.barberoId === barbero.id)))
   }
 
   function closeScheduleModal() {
@@ -143,10 +165,7 @@ export function EquipoPage() {
   function saveSchedule() {
     if (!selectedScheduleBarber) return
 
-    setBarberSchedules((currentSchedules) => ({
-      ...currentSchedules,
-      [selectedScheduleBarber.id]: scheduleDraft.map((schedule) => ({ ...schedule })),
-    }))
+    actualizarHorario(draftToHorario(selectedScheduleBarber.id, scheduleDraft))
     closeScheduleModal()
   }
 
@@ -160,7 +179,7 @@ export function EquipoPage() {
 
         <button
           className="inline-flex w-full items-center justify-center gap-3 rounded-lg bg-[#e5c04f] px-7 py-4 font-bold text-[#111827] transition hover:bg-[#f5c518] sm:w-auto"
-          onClick={() => setIsModalOpen(true)}
+          onClick={openCreateModal}
           type="button"
         >
           <span className="text-2xl leading-none text-[#7c3aed]">+</span>
@@ -171,64 +190,69 @@ export function EquipoPage() {
       <section className="mt-7 grid gap-6 xl:grid-cols-3 lg:grid-cols-2">
         {barberos.map((barbero) => (
           <article
-            className={`rounded-lg border border-[#4f3f00] bg-[#171404] px-6 py-6 ${
-              barbero.activo ? '' : 'opacity-55'
+            className={`overflow-hidden rounded-xl border border-[#4f3f00] bg-[#111827] shadow-[0_18px_50px_rgba(0,0,0,0.28)] ${
+              isBarberActive(barbero) ? '' : 'opacity-55'
             }`}
             key={barbero.id}
           >
-            <div className="flex flex-col items-center">
-              <div className="relative">
-                <img
-                  alt={`Foto de ${barbero.nombre}`}
-                  className="h-28 w-28 rounded-full border-4 border-[#d1d5db] object-cover"
-                  src={barbero.fotoUrl}
-                />
-                <button
-                  aria-label={`Cambiar foto de ${barbero.nombre}`}
-                  className="absolute bottom-1 right-0 flex h-10 w-10 items-center justify-center rounded-full bg-[#d1ad32] text-sm text-[#111827]"
-                  type="button"
-                >
-                  📷
-                </button>
+            <div className="border-b border-[#263244] bg-[#171404] px-6 py-5">
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <h2 className="truncate text-xl font-bold text-white">{barbero.nombre}</h2>
+                  <p className="mt-1 text-sm text-[#a0a0a0]">
+                    {barbero.telefono ? barbero.telefono : 'Sin telefono cargado'}
+                  </p>
+                </div>
+
+                <div className="flex shrink-0 items-center gap-2">
+                  <button
+                    aria-label={`${isBarberActive(barbero) ? 'Desactivar' : 'Activar'} ${barbero.nombre}`}
+                    className={`flex h-6 w-11 items-center rounded-full px-1 transition ${
+                      isBarberActive(barbero) ? 'justify-end bg-[#22c55e]' : 'justify-start bg-[#4b5563]'
+                    }`}
+                    onClick={() => toggleActivo(barbero.id)}
+                    type="button"
+                  >
+                    <span className="h-4 w-4 rounded-full bg-white" />
+                  </button>
+                  <button
+                    className="rounded-lg border border-[#334155] bg-[#0f172a] px-3 py-2 text-sm font-bold text-[#f5c518] transition hover:border-[#f5c518]"
+                    onClick={() => openEditModal(barbero)}
+                    type="button"
+                  >
+                    Editar
+                  </button>
+                </div>
               </div>
 
-              <h2 className="mt-5 text-center text-xl font-bold text-white">
-                {barbero.nombre} <span className="ml-1 text-base">✏️</span>
-              </h2>
+              <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
+                <div className="rounded-lg bg-[#0f172a] px-4 py-3">
+                  <span className="block text-[#a0a0a0]">Comision casa</span>
+                  <strong className="mt-1 block text-white">{barbero.porcentajeCasa}%</strong>
+                </div>
+                <div className="rounded-lg bg-[#0f172a] px-4 py-3">
+                  <span className="block text-[#a0a0a0]">Rol</span>
+                  <strong className="mt-1 block text-white">{isBarberOwner(barbero) ? 'Dueño' : 'Barbero'}</strong>
+                </div>
+              </div>
             </div>
 
-            <div className="mt-5 flex items-center justify-between rounded-md bg-[#111827] px-4 py-3">
-              <span className="text-sm text-[#a0a0a0]">Estado</span>
+            <div className="grid grid-cols-2 gap-2 px-6 py-5">
               <button
-                aria-label={`${barbero.activo ? 'Desactivar' : 'Activar'} ${barbero.nombre}`}
-                className={`flex h-6 w-11 items-center rounded-full px-1 transition ${
-                  barbero.activo ? 'justify-end bg-[#22c55e]' : 'justify-start bg-[#4b5563]'
-                }`}
-                onClick={() =>
-                  setBarberos((currentBarberos) =>
-                    currentBarberos.map((currentBarbero) =>
-                      currentBarbero.id === barbero.id
-                        ? { ...currentBarbero, activo: !currentBarbero.activo }
-                        : currentBarbero,
-                    ),
-                  )
-                }
+                className="w-full rounded-md border border-[#334155] bg-[#1f2937] px-3 py-2 text-xs font-bold text-[#d1d5db] transition hover:border-[#475569] hover:bg-[#263244]"
+                onClick={() => openScheduleModal(barbero)}
                 type="button"
               >
-                <span className="h-4 w-4 rounded-full bg-white" />
+                Horarios
               </button>
-              <span className={`text-sm font-bold ${barbero.activo ? 'text-[#4ade80]' : 'text-[#6b7280]'}`}>
-                {barbero.activo ? 'Activo' : 'Inactivo'}
-              </span>
+              <button
+                className="w-full rounded-md border border-[#5f2d2d] bg-[#2a1618] px-3 py-2 text-xs font-bold text-[#fca5a5] transition hover:border-[#7f3b3b] hover:bg-[#351c1f]"
+                onClick={() => setDeletingBarber(barbero)}
+                type="button"
+              >
+                Eliminar
+              </button>
             </div>
-
-            <button
-              className="mt-4 w-full rounded-md bg-[#2563eb] px-4 py-3 font-bold text-white transition hover:bg-[#1d4ed8]"
-              onClick={() => openScheduleModal(barbero)}
-              type="button"
-            >
-              ⏱ Editar Horarios
-            </button>
           </article>
         ))}
       </section>
@@ -240,7 +264,7 @@ export function EquipoPage() {
             onSubmit={handleSubmit}
           >
             <div className="flex items-center justify-between border-b border-[#334155] px-6 py-6">
-              <h2 className="text-2xl font-bold">Nuevo Barbero</h2>
+              <h2 className="text-2xl font-bold">{editingBarber ? 'Editar Barbero' : 'Nuevo Barbero'}</h2>
               <button
                 aria-label="Cerrar modal"
                 className="text-4xl font-light leading-none text-[#bfdbfe] hover:text-white"
@@ -322,10 +346,39 @@ export function EquipoPage() {
                 Cancelar
               </button>
               <button className="rounded-lg bg-[#e5c04f] px-4 py-3 font-bold text-[#111827] hover:bg-[#f5c518]" type="submit">
-                Crear Barbero
+                {editingBarber ? 'Guardar Cambios' : 'Crear Barbero'}
               </button>
             </div>
           </form>
+        </div>
+      ) : null}
+
+      {deletingBarber ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4">
+          <section className="w-full max-w-md rounded-lg border border-[#475569] bg-[#111827] p-6 text-center text-white shadow-2xl">
+            <h2 className="text-2xl font-bold">Eliminar barbero</h2>
+            <p className="mt-4 text-[#d1d5db]">¿Querés eliminar a "{deletingBarber.nombre}"?</p>
+            <p className="mt-2 text-sm text-[#a0a0a0]">También se eliminarán sus horarios guardados en el mock.</p>
+            <div className="mt-7 grid grid-cols-2 gap-3">
+              <button
+                className="rounded-lg bg-[#475569] px-4 py-3 font-bold text-white transition hover:bg-[#64748b]"
+                onClick={() => setDeletingBarber(null)}
+                type="button"
+              >
+                Cancelar
+              </button>
+              <button
+                className="rounded-lg bg-[#e9282d] px-4 py-3 font-bold text-white transition hover:bg-[#dc2626]"
+                onClick={() => {
+                  eliminarBarbero(deletingBarber.id)
+                  setDeletingBarber(null)
+                }}
+                type="button"
+              >
+                Eliminar
+              </button>
+            </div>
+          </section>
         </div>
       ) : null}
 
@@ -335,6 +388,9 @@ export function EquipoPage() {
             <div className="flex items-start justify-between border-b border-[#d1d5db] px-6 py-7">
               <div>
                 <h2 className="text-2xl font-bold">Horarios de {selectedScheduleBarber.nombre}</h2>
+                {isBarberOwner(selectedScheduleBarber) ? (
+                  <p className="mt-1 text-xs text-[#f5c518]">Dueño: recibe 100% de sus cortes</p>
+                ) : null}
                 <p className="mt-2 text-sm text-[#a0a0a0]">Configura los días y horarios de trabajo</p>
               </div>
               <button

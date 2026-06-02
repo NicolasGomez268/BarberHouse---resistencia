@@ -22,6 +22,7 @@ export function AppRoutes() {
           <Route path="/caja" element={<CajaPage />} />
         </Route>
       </Route>
+      <Route path="*" element={<Navigate to="/agenda" replace />} />
     </Routes>
   )
 }

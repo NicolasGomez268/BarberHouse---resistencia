@@ -1,5 +1,6 @@
-import { Banknote, Boxes, CalendarDays, Scissors, Users } from 'lucide-react'
-import { NavLink, Outlet } from 'react-router-dom'
+import { Banknote, Boxes, CalendarDays, LogOut, Scissors, Users } from 'lucide-react'
+import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { useAuth } from '../hooks/useAuth'
 
 const links = [
   { to: '/agenda', label: 'Agenda', Icon: CalendarDays },
@@ -10,6 +11,14 @@ const links = [
 ]
 
 export function AdminLayout() {
+  const { logout } = useAuth()
+  const navigate = useNavigate()
+
+  function handleLogout() {
+    logout()
+    navigate('/login')
+  }
+
   return (
     <div className="min-h-screen bg-background pb-28 text-text-primary md:pb-0">
       <aside className="hidden border-b border-[#1f2937] bg-[#111827] px-4 py-4 md:fixed md:inset-y-0 md:left-0 md:z-30 md:block md:w-60 md:border-b-0 md:border-r md:py-6">
@@ -33,12 +42,20 @@ export function AdminLayout() {
               {link.label}
             </NavLink>
           ))}
+          <button
+            className="mt-auto flex shrink-0 items-center gap-2 rounded-lg px-4 py-3 text-left text-sm font-medium text-red-300 transition hover:bg-[#1f2937] hover:text-red-200"
+            onClick={handleLogout}
+            type="button"
+          >
+            <LogOut className="h-5 w-5" />
+            Cerrar Sesión
+          </button>
         </nav>
       </aside>
       <main className="min-h-screen p-4 md:ml-60 md:p-6">
         <Outlet />
       </main>
-      <nav className="fixed inset-x-4 bottom-4 z-40 grid grid-cols-5 rounded-[2rem] border border-[#2a2a4a] bg-[#111827]/95 p-2 shadow-2xl shadow-black/50 backdrop-blur md:hidden">
+      <nav className="fixed inset-x-4 bottom-4 z-40 grid grid-cols-6 rounded-[2rem] border border-[#2a2a4a] bg-[#111827]/95 p-2 shadow-2xl shadow-black/50 backdrop-blur md:hidden">
         {links.map(({ to, label, Icon }) => (
           <NavLink
             className={({ isActive }) =>
@@ -53,6 +70,14 @@ export function AdminLayout() {
             <span className="truncate">{label}</span>
           </NavLink>
         ))}
+        <button
+          className="flex min-w-0 flex-col items-center justify-center gap-1 rounded-[1.5rem] px-2 py-3 text-xs font-semibold text-red-300 transition hover:text-red-200"
+          onClick={handleLogout}
+          type="button"
+        >
+          <LogOut aria-hidden="true" className="h-6 w-6" strokeWidth={2.4} />
+          <span className="truncate">Salir</span>
+        </button>
       </nav>
     </div>
   )

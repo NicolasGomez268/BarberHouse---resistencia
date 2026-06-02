@@ -1,20 +1,11 @@
 import { ChevronLeft, ChevronRight, Plus, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import type React from 'react'
 import type { FormEvent } from 'react'
+import { useInventario } from '../features/inventario/hooks/useInventario'
+import type { MetodoPagoMock, Producto, Venta } from '../types'
 
 type StockTab = 'catalogo' | 'venta' | 'historial'
-
-type StockProduct = {
-  id: string
-  nombre: string
-  variante: string
-  categoria: string
-  costo: number
-  venta: number
-  stock: number
-  activo: boolean
-  descripcion: string
-}
 
 type ProductForm = {
   nombre: string
@@ -27,121 +18,15 @@ type ProductForm = {
   descripcion: string
 }
 
+type SaleFormState = {
+  productoId: string
+  cantidad: string
+  metodoPago: MetodoPagoMock
+  vendedorId: string
+  notas: string
+}
+
 const productsPerPage = 6
-
-const initialProducts: StockProduct[] = [
-  {
-    id: 'producto-1',
-    nombre: 'Aceite para Barba',
-    variante: '50ml',
-    categoria: 'Capilar',
-    costo: 3200,
-    venta: 6000,
-    stock: 12,
-    activo: true,
-    descripcion: 'Aceite hidratante con aroma a madera',
-  },
-  {
-    id: 'producto-2',
-    nombre: 'Buzo Oversize',
-    variante: 'XL',
-    categoria: 'Ropa',
-    costo: 12000,
-    venta: 22000,
-    stock: 3,
-    activo: true,
-    descripcion: 'Buzo premium de la barbería',
-  },
-  {
-    id: 'producto-3',
-    nombre: 'Cera para Bigote',
-    variante: '30g',
-    categoria: 'Capilar',
-    costo: 2000,
-    venta: 4000,
-    stock: 10,
-    activo: true,
-    descripcion: 'Cera de fijación fuerte',
-  },
-  {
-    id: 'producto-4',
-    nombre: 'Navaja de Afeitar',
-    variante: '',
-    categoria: 'Accesorios',
-    costo: 6500,
-    venta: 12000,
-    stock: 6,
-    activo: true,
-    descripcion: 'Navaja profesional metálica',
-  },
-  {
-    id: 'producto-5',
-    nombre: 'Peine de Madera',
-    variante: '',
-    categoria: 'Accesorios',
-    costo: 1500,
-    venta: 3000,
-    stock: 25,
-    activo: true,
-    descripcion: 'Peine antiestático para barba y cabello',
-  },
-  {
-    id: 'producto-6',
-    nombre: 'Pomada Mate',
-    variante: '100g',
-    categoria: 'Capilar',
-    costo: 3500,
-    venta: 6500,
-    stock: 15,
-    activo: true,
-    descripcion: 'Pomada de acabado mate',
-  },
-  {
-    id: 'producto-7',
-    nombre: 'Remera Barbería',
-    variante: 'L',
-    categoria: 'Ropa',
-    costo: 5000,
-    venta: 9500,
-    stock: 5,
-    activo: true,
-    descripcion: 'Remera negra con logo',
-  },
-  {
-    id: 'producto-8',
-    nombre: 'Remera Barbería',
-    variante: 'M',
-    categoria: 'Ropa',
-    costo: 5000,
-    venta: 9500,
-    stock: 8,
-    activo: true,
-    descripcion: 'Remera negra con logo',
-  },
-  {
-    id: 'producto-9',
-    nombre: 'Shampoo Keratina',
-    variante: '250ml',
-    categoria: 'Capilar',
-    costo: 4200,
-    venta: 7800,
-    stock: 0,
-    activo: true,
-    descripcion: 'Shampoo fortalecedor',
-  },
-  {
-    id: 'producto-10',
-    nombre: 'Cepillo Fade',
-    variante: '',
-    categoria: 'Accesorios',
-    costo: 2800,
-    venta: 5200,
-    stock: 9,
-    activo: true,
-    descripcion: 'Cepillo para terminaciones',
-  },
-]
-
 const emptyForm: ProductForm = {
   nombre: '',
   variante: '',
@@ -154,62 +39,70 @@ const emptyForm: ProductForm = {
 }
 
 function formatCurrency(value: number) {
-  return new Intl.NumberFormat('es-AR', {
-    style: 'currency',
-    currency: 'ARS',
-  }).format(value)
+  return value.toLocaleString('es-AR', { style: 'currency', currency: 'ARS' })
 }
 
-function productToForm(product: StockProduct): ProductForm {
+function productToForm(product: Producto): ProductForm {
   return {
     nombre: product.nombre,
-    variante: product.variante,
-    categoria: product.categoria,
-    costo: String(product.costo),
-    venta: String(product.venta),
-    stock: String(product.stock),
-    activo: product.activo,
-    descripcion: product.descripcion,
+    variante: product.variante ?? '',
+    categoria: product.categoria ?? '',
+    costo: String(product.precioCosto ?? 0),
+    venta: String(product.precioVenta ?? 0),
+    stock: String(product.stockActual ?? 0),
+    activo: product.isActive ?? true,
+    descripcion: product.descripcion ?? '',
   }
 }
 
 export function InventarioPage() {
+  const { productos, ventas, agregarProducto, actualizarProducto, ajustarStock, registrarVenta } = useInventario()
   const [activeTab, setActiveTab] = useState<StockTab>('catalogo')
-  const [products, setProducts] = useState<StockProduct[]>(initialProducts)
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('Todas')
   const [statusFilter, setStatusFilter] = useState('Todos')
   const [currentPage, setCurrentPage] = useState(1)
   const [isProductModalOpen, setIsProductModalOpen] = useState(false)
-  const [editingProduct, setEditingProduct] = useState<StockProduct | null>(null)
+  const [editingProduct, setEditingProduct] = useState<Producto | null>(null)
   const [form, setForm] = useState<ProductForm>(emptyForm)
+  const [sale, setSale] = useState<SaleFormState>({
+    productoId: productos[0]?.id ?? '',
+    cantidad: '1',
+    metodoPago: 'EFECTIVO',
+    vendedorId: '',
+    notas: '',
+  })
+  const [saleError, setSaleError] = useState<string | null>(null)
+  const [historyDate, setHistoryDate] = useState(new Date().toISOString().slice(0, 10))
+  const [historyPayment, setHistoryPayment] = useState<MetodoPagoMock | 'TODOS'>('TODOS')
 
   const filteredProducts = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase()
-
-    return products.filter((product) => {
+    return productos.filter((product) => {
       const matchesSearch =
         product.nombre.toLowerCase().includes(normalizedSearch) ||
-        product.variante.toLowerCase().includes(normalizedSearch) ||
-        product.categoria.toLowerCase().includes(normalizedSearch)
+        (product.variante ?? '').toLowerCase().includes(normalizedSearch) ||
+        (product.categoria ?? '').toLowerCase().includes(normalizedSearch)
       const matchesCategory = categoryFilter === 'Todas' || product.categoria === categoryFilter
       const matchesStatus =
         statusFilter === 'Todos' ||
-        (statusFilter === 'Activos' && product.activo) ||
-        (statusFilter === 'Inactivos' && !product.activo)
-
+        (statusFilter === 'Activos' && (product.isActive ?? true)) ||
+        (statusFilter === 'Inactivos' && !(product.isActive ?? true))
       return matchesSearch && matchesCategory && matchesStatus
     })
-  }, [categoryFilter, products, search, statusFilter])
+  }, [categoryFilter, productos, search, statusFilter])
 
   const totalPages = Math.max(1, Math.ceil(filteredProducts.length / productsPerPage))
   const pageProducts = filteredProducts.slice((currentPage - 1) * productsPerPage, currentPage * productsPerPage)
-  const categories = Array.from(new Set(products.map((product) => product.categoria))).filter(Boolean)
-  const totalProducts = products.length
-  const outOfStock = products.filter((product) => product.stock === 0).length
-  const activeProducts = products.filter((product) => product.activo).length
+  const categories = Array.from(new Set(productos.map((product) => product.categoria ?? '').filter(Boolean)))
+  const totalProducts = productos.length
+  const outOfStock = productos.filter((product) => (product.stockActual ?? 0) === 0).length
+  const activeProducts = productos.filter((product) => product.isActive ?? true).length
   const isEditing = editingProduct !== null
   const margin = Number(form.venta) - Number(form.costo)
+  const historySales = ventas.filter(
+    (venta) => venta.fecha === historyDate && (historyPayment === 'TODOS' || venta.metodoPago === historyPayment),
+  )
 
   function openCreateModal() {
     setEditingProduct(null)
@@ -217,7 +110,7 @@ export function InventarioPage() {
     setIsProductModalOpen(true)
   }
 
-  function openEditModal(product: StockProduct) {
+  function openEditModal(product: Producto) {
     setEditingProduct(product)
     setForm(productToForm(product))
     setIsProductModalOpen(true)
@@ -231,51 +124,54 @@ export function InventarioPage() {
 
   function handleProductSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-
-    const nombre = form.nombre.trim()
-    if (!nombre) return
-
     const payload = {
-      nombre,
-      variante: form.variante.trim(),
+      nombre: form.nombre.trim(),
+      variante: form.variante.trim() || undefined,
       categoria: form.categoria.trim() || 'Sin categoría',
-      costo: Number(form.costo) || 0,
-      venta: Number(form.venta) || 0,
+      precioCosto: Number(form.costo) || 0,
+      precioVenta: Number(form.venta) || 0,
+      stockActual: Number(form.stock) || 0,
       stock: Number(form.stock) || 0,
-      activo: form.activo,
-      descripcion: form.descripcion.trim(),
+      isActive: form.activo,
+      descripcion: form.descripcion.trim() || undefined,
     }
 
+    if (!payload.nombre) return
     if (editingProduct) {
-      setProducts((currentProducts) =>
-        currentProducts.map((product) => (product.id === editingProduct.id ? { ...product, ...payload } : product)),
-      )
+      actualizarProducto(editingProduct.id, payload)
     } else {
-      setProducts((currentProducts) => [{ id: crypto.randomUUID(), ...payload }, ...currentProducts])
+      agregarProducto(payload)
       setCurrentPage(1)
     }
-
     closeProductModal()
   }
 
-  function deleteProduct(productId: string) {
-    setProducts((currentProducts) => currentProducts.filter((product) => product.id !== productId))
-    setCurrentPage(1)
-  }
+  function submitSale(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const product = productos.find((item) => item.id === sale.productoId)
+    const cantidad = Number(sale.cantidad)
+    if (!product || cantidad <= 0) return
+    if ((product.stockActual ?? 0) < cantidad) {
+      setSaleError('Stock insuficiente')
+      return
+    }
 
-  function updateSearch(value: string) {
-    setSearch(value)
-    setCurrentPage(1)
-  }
-
-  function updateCategory(value: string) {
-    setCategoryFilter(value)
-    setCurrentPage(1)
-  }
-
-  function updateStatus(value: string) {
-    setStatusFilter(value)
-    setCurrentPage(1)
+    try {
+      registrarVenta({
+        sucursalId: 's1',
+        fecha: new Date().toISOString().slice(0, 10),
+        productoId: product.id,
+        cantidad,
+        precioUnitario: product.precioVenta ?? 0,
+        total: (product.precioVenta ?? 0) * cantidad,
+        metodoPago: sale.metodoPago,
+        vendedorId: sale.vendedorId || 'barbero-1',
+        notas: sale.notas || undefined,
+      })
+      setSaleError(null)
+    } catch (error) {
+      setSaleError(error instanceof Error ? error.message : 'No se pudo registrar la venta')
+    }
   }
 
   return (
@@ -308,39 +204,19 @@ export function InventarioPage() {
         <>
           <section className="mt-6 grid gap-4 rounded-lg bg-[#1f2937] p-4 lg:grid-cols-[auto_1fr_auto_130px_auto_130px_auto] lg:items-center">
             <label className="font-bold">Buscar:</label>
-            <input
-              className="w-full rounded-lg border border-[#6b5600] bg-[#0a0a0a] px-4 py-3 text-white outline-none placeholder:text-[#9ca3af] focus:border-[#f5c518]"
-              onChange={(event) => updateSearch(event.target.value)}
-              placeholder="Nombre, variante, categoría..."
-              type="search"
-              value={search}
-            />
+            <input className="w-full rounded-lg border border-[#6b5600] bg-[#0a0a0a] px-4 py-3 text-white outline-none placeholder:text-[#9ca3af] focus:border-[#f5c518]" onChange={(event) => { setSearch(event.target.value); setCurrentPage(1) }} placeholder="Nombre, variante, categoría..." type="search" value={search} />
             <label className="font-bold">Categoría:</label>
-            <select
-              className="rounded-lg border border-[#6b5600] bg-[#0a0a0a] px-4 py-3 text-white outline-none focus:border-[#f5c518]"
-              onChange={(event) => updateCategory(event.target.value)}
-              value={categoryFilter}
-            >
+            <select className="rounded-lg border border-[#6b5600] bg-[#0a0a0a] px-4 py-3 text-white outline-none focus:border-[#f5c518]" onChange={(event) => { setCategoryFilter(event.target.value); setCurrentPage(1) }} value={categoryFilter}>
               <option>Todas</option>
-              {categories.map((category) => (
-                <option key={category}>{category}</option>
-              ))}
+              {categories.map((category) => <option key={category}>{category}</option>)}
             </select>
             <label className="font-bold">Estado:</label>
-            <select
-              className="rounded-lg border border-[#6b5600] bg-[#0a0a0a] px-4 py-3 text-white outline-none focus:border-[#f5c518]"
-              onChange={(event) => updateStatus(event.target.value)}
-              value={statusFilter}
-            >
+            <select className="rounded-lg border border-[#6b5600] bg-[#0a0a0a] px-4 py-3 text-white outline-none focus:border-[#f5c518]" onChange={(event) => { setStatusFilter(event.target.value); setCurrentPage(1) }} value={statusFilter}>
               <option>Todos</option>
               <option>Activos</option>
               <option>Inactivos</option>
             </select>
-            <button
-              className="inline-flex items-center justify-center gap-3 rounded-lg bg-[#e5c04f] px-6 py-3 font-bold text-[#111827] transition hover:bg-[#f5c518]"
-              onClick={openCreateModal}
-              type="button"
-            >
+            <button className="inline-flex items-center justify-center gap-3 rounded-lg bg-[#e5c04f] px-6 py-3 font-bold text-[#111827] transition hover:bg-[#f5c518]" onClick={openCreateModal} type="button">
               <Plus className="h-6 w-6 text-[#7c3aed]" />
               Nuevo Producto
             </button>
@@ -356,24 +232,12 @@ export function InventarioPage() {
             <table className="w-full border-collapse text-left">
               <thead>
                 <tr className="border-b border-[#1f2937] text-[#b6c7dc]">
-                  <TableHead>Producto</TableHead>
-                  <TableHead>Categoría</TableHead>
-                  <TableHead>Costo</TableHead>
-                  <TableHead>Venta</TableHead>
-                  <TableHead>Margen</TableHead>
-                  <TableHead>Stock</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead>Acciones</TableHead>
+                  <TableHead>Producto</TableHead><TableHead>Categoría</TableHead><TableHead>Costo</TableHead><TableHead>Venta</TableHead><TableHead>Margen</TableHead><TableHead>Stock</TableHead><TableHead>Estado</TableHead><TableHead>Acciones</TableHead>
                 </tr>
               </thead>
               <tbody>
                 {pageProducts.map((product) => (
-                  <ProductRow
-                    key={product.id}
-                    onDelete={deleteProduct}
-                    onEdit={openEditModal}
-                    product={product}
-                  />
+                  <ProductRow key={product.id} onDelete={(id) => actualizarProducto(id, { isActive: false })} onEdit={openEditModal} onStock={(id) => ajustarStock(id, 1, 'agregar')} product={product} />
                 ))}
               </tbody>
             </table>
@@ -381,94 +245,52 @@ export function InventarioPage() {
 
           <section className="mt-5 grid gap-4 xl:hidden">
             {pageProducts.map((product) => (
-              <ProductCard key={product.id} onDelete={deleteProduct} onEdit={openEditModal} product={product} />
+              <ProductCard key={product.id} onDelete={(id) => actualizarProducto(id, { isActive: false })} onEdit={openEditModal} onStock={(id) => ajustarStock(id, 1, 'agregar')} product={product} />
             ))}
           </section>
 
-          <Pagination
-            currentPage={currentPage}
-            onPageChange={setCurrentPage}
-            totalItems={filteredProducts.length}
-            totalPages={totalPages}
-          />
+          <Pagination currentPage={currentPage} onPageChange={setCurrentPage} totalItems={filteredProducts.length} totalPages={totalPages} />
         </>
       ) : null}
 
-      {activeTab === 'venta' ? <SaleForm products={products.filter((product) => product.activo && product.stock > 0)} /> : null}
-      {activeTab === 'historial' ? <SalesHistory /> : null}
+      {activeTab === 'venta' ? <SaleForm products={productos.filter((product) => (product.isActive ?? true) && (product.stockActual ?? 0) > 0)} sale={sale} saleError={saleError} setSale={setSale} onSubmit={submitSale} /> : null}
+      {activeTab === 'historial' ? <SalesHistory historyDate={historyDate} historyPayment={historyPayment} products={productos} sales={historySales} setHistoryDate={setHistoryDate} setHistoryPayment={setHistoryPayment} /> : null}
 
       {isProductModalOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
-          <form
-            className="max-h-[92vh] w-full max-w-[672px] overflow-y-auto rounded-lg border border-[#6b5600] bg-[#0b0b0d] text-white shadow-2xl"
-            onSubmit={handleProductSubmit}
-          >
+          <form className="max-h-[92vh] w-full max-w-[672px] overflow-y-auto rounded-lg border border-[#6b5600] bg-[#0b0b0d] text-white shadow-2xl" onSubmit={handleProductSubmit}>
             <div className="flex items-center justify-between border-b border-[#d1d5db] px-6 py-5">
               <h2 className="text-2xl font-bold">{isEditing ? 'Editar Producto' : 'Nuevo Producto'}</h2>
-              <button aria-label="Cerrar modal" className="text-[#d1d5db] hover:text-white" onClick={closeProductModal} type="button">
-                <X className="h-8 w-8" />
-              </button>
+              <button aria-label="Cerrar modal" className="text-[#d1d5db] hover:text-white" onClick={() => setIsProductModalOpen(false)} type="button"><X className="h-8 w-8" /></button>
             </div>
-
             <div className="space-y-5 px-6 py-6">
               <label className="block">
                 <span className="font-bold">Nombre *</span>
-                <input
-                  className="mt-2 w-full rounded-lg border border-[#475569] bg-[#1f2937] px-4 py-3 text-white outline-none placeholder:text-[#9ca3af] focus:border-[#f5c518]"
-                  onChange={(event) => setForm((currentForm) => ({ ...currentForm, nombre: event.target.value }))}
-                  placeholder="Ej: Shampoo Keratina, Pomada Mate, Remera Oversize"
-                  required
-                  type="text"
-                  value={form.nombre}
-                />
+                <input className="mt-2 w-full rounded-lg border border-[#475569] bg-[#1f2937] px-4 py-3 text-white outline-none placeholder:text-[#9ca3af] focus:border-[#f5c518]" onChange={(event) => setForm((current) => ({ ...current, nombre: event.target.value }))} placeholder="Ej: Shampoo Keratina, Pomada Mate, Remera Oversize" required type="text" value={form.nombre} />
               </label>
-
               <div className="grid gap-4 md:grid-cols-2">
-                <FormInput label="Variante" optional onChange={(value) => setForm((currentForm) => ({ ...currentForm, variante: value }))} placeholder="Ej: 250ml, S, Azul, 1kg" value={form.variante} />
-                <FormInput label="Categoría" optional onChange={(value) => setForm((currentForm) => ({ ...currentForm, categoria: value }))} placeholder="Ej: Capilar, Ropa, Accesorios" value={form.categoria} />
-                <FormInput label="Precio de Costo" onChange={(value) => setForm((currentForm) => ({ ...currentForm, costo: value }))} type="number" value={form.costo} />
+                <FormInput label="Variante" optional onChange={(value) => setForm((current) => ({ ...current, variante: value }))} placeholder="Ej: 250ml, S, Azul, 1kg" value={form.variante} />
+                <FormInput label="Categoría" optional onChange={(value) => setForm((current) => ({ ...current, categoria: value }))} placeholder="Ej: Capilar, Ropa, Accesorios" value={form.categoria} />
+                <FormInput label="Precio de Costo" onChange={(value) => setForm((current) => ({ ...current, costo: value }))} type="number" value={form.costo} />
                 <label className="block">
                   <span className="font-bold">Precio de Venta *</span>
-                  <input
-                    className="mt-2 w-full rounded-lg border border-[#475569] bg-[#1f2937] px-4 py-3 text-white outline-none placeholder:text-[#9ca3af] focus:border-[#f5c518]"
-                    min="0"
-                    onChange={(event) => setForm((currentForm) => ({ ...currentForm, venta: event.target.value }))}
-                    required
-                    type="number"
-                    value={form.venta}
-                  />
+                  <input className="mt-2 w-full rounded-lg border border-[#475569] bg-[#1f2937] px-4 py-3 text-white outline-none placeholder:text-[#9ca3af] focus:border-[#f5c518]" min="0" onChange={(event) => setForm((current) => ({ ...current, venta: event.target.value }))} required type="number" value={form.venta} />
                   {isEditing ? <span className="mt-1 block text-sm text-[#22c55e]">Margen: {formatCurrency(margin)}</span> : null}
                 </label>
-                <FormInput label="Stock inicial" onChange={(value) => setForm((currentForm) => ({ ...currentForm, stock: value }))} type="number" value={form.stock} />
+                <FormInput label="Stock inicial" onChange={(value) => setForm((current) => ({ ...current, stock: value }))} type="number" value={form.stock} />
                 <label className="flex items-center gap-3 self-end pb-3 font-bold text-[#d1d5db]">
-                  <input
-                    checked={form.activo}
-                    className="h-5 w-5 accent-[#f5c518]"
-                    onChange={(event) => setForm((currentForm) => ({ ...currentForm, activo: event.target.checked }))}
-                    type="checkbox"
-                  />
+                  <input checked={form.activo} className="h-5 w-5 accent-[#f5c518]" onChange={(event) => setForm((current) => ({ ...current, activo: event.target.checked }))} type="checkbox" />
                   Activo (disponible para venta)
                 </label>
               </div>
-
               <label className="block">
                 <span className="font-bold">Descripción <span className="font-normal text-[#6b7280]">(opcional)</span></span>
-                <textarea
-                  className="mt-2 min-h-[66px] w-full resize-none rounded-lg border border-[#475569] bg-[#1f2937] px-4 py-3 text-white outline-none placeholder:text-[#9ca3af] focus:border-[#f5c518]"
-                  onChange={(event) => setForm((currentForm) => ({ ...currentForm, descripcion: event.target.value }))}
-                  placeholder="Descripción adicional..."
-                  value={form.descripcion}
-                />
+                <textarea className="mt-2 min-h-[66px] w-full resize-none rounded-lg border border-[#475569] bg-[#1f2937] px-4 py-3 text-white outline-none placeholder:text-[#9ca3af] focus:border-[#f5c518]" onChange={(event) => setForm((current) => ({ ...current, descripcion: event.target.value }))} placeholder="Descripción adicional..." value={form.descripcion} />
               </label>
             </div>
-
             <div className="flex flex-col gap-3 border-t border-[#374151] px-6 py-5 sm:flex-row sm:justify-end">
-              <button className="rounded-lg bg-[#475569] px-6 py-3 text-white hover:bg-[#64748b]" onClick={closeProductModal} type="button">
-                Cancelar
-              </button>
-              <button className="rounded-lg bg-[#e5c04f] px-6 py-3 font-bold text-[#111827] hover:bg-[#f5c518]" type="submit">
-                {isEditing ? 'Guardar cambios' : 'Crear producto'}
-              </button>
+              <button className="rounded-lg bg-[#475569] px-6 py-3 text-white hover:bg-[#64748b]" onClick={closeProductModal} type="button">Cancelar</button>
+              <button className="rounded-lg bg-[#e5c04f] px-6 py-3 font-bold text-[#111827] hover:bg-[#f5c518]" type="submit">{isEditing ? 'Guardar cambios' : 'Crear producto'}</button>
             </div>
           </form>
         </div>
@@ -477,249 +299,119 @@ export function InventarioPage() {
   )
 }
 
-type SummaryCardProps = {
-  accent: string
-  label: string
-  value: number
-}
+type SummaryCardProps = { accent: string; label: string; value: number }
 
 function SummaryCard({ accent, label, value }: SummaryCardProps) {
-  return (
-    <article className={`rounded-lg border-l-4 ${accent} bg-[#1f2937] p-6`}>
-      <p className="font-bold text-[#9fb3ca]">{label}</p>
-      <p className="mt-3 text-2xl font-bold text-white">{value}</p>
-    </article>
-  )
+  return <article className={`rounded-lg border-l-4 ${accent} bg-[#1f2937] p-6`}><p className="font-bold text-[#9fb3ca]">{label}</p><p className="mt-3 text-2xl font-bold text-white">{value}</p></article>
 }
 
 type ProductActionsProps = {
   onDelete: (productId: string) => void
-  onEdit: (product: StockProduct) => void
-  product: StockProduct
+  onEdit: (product: Producto) => void
+  onStock: (productId: string) => void
+  product: Producto
 }
 
-function ProductActions({ onDelete, onEdit, product }: ProductActionsProps) {
+function ProductActions({ onDelete, onEdit, onStock, product }: ProductActionsProps) {
   return (
     <div className="flex flex-wrap gap-2">
-      <button className="rounded bg-[#2563eb] px-4 py-3 text-sm font-bold text-white hover:bg-[#1d4ed8]" onClick={() => onEdit(product)} type="button">
-        Editar
-      </button>
-      <button className="rounded bg-[#16a34a] px-4 py-3 text-sm font-bold text-white hover:bg-[#15803d]" type="button">
-        Stock
-      </button>
-      <button className="rounded bg-[#475569] px-4 py-3 text-sm text-white hover:bg-[#64748b]" type="button">
-        {product.activo ? 'Desactivar' : 'Activar'}
-      </button>
-      <button className="rounded bg-[#e9282d] px-4 py-3 text-sm font-bold text-white hover:bg-[#dc2626]" onClick={() => onDelete(product.id)} type="button">
-        Eliminar
-      </button>
+      <button className="rounded bg-[#2563eb] px-4 py-3 text-sm font-bold text-white hover:bg-[#1d4ed8]" onClick={() => onEdit(product)} type="button">Editar</button>
+      <button className="rounded bg-[#16a34a] px-4 py-3 text-sm font-bold text-white hover:bg-[#15803d]" onClick={() => onStock(product.id)} type="button">Stock</button>
+      <button className="rounded bg-[#475569] px-4 py-3 text-sm text-white hover:bg-[#64748b]" type="button">{(product.isActive ?? true) ? 'Desactivar' : 'Activar'}</button>
+      <button className="rounded bg-[#e9282d] px-4 py-3 text-sm font-bold text-white hover:bg-[#dc2626]" onClick={() => onDelete(product.id)} type="button">Eliminar</button>
     </div>
   )
 }
 
-function ProductRow({ onDelete, onEdit, product }: ProductActionsProps) {
-  const margin = product.venta - product.costo
-  const marginPercent = product.costo > 0 ? (margin / product.costo) * 100 : 0
-
+function ProductRow({ onDelete, onEdit, onStock, product }: ProductActionsProps) {
+  const cost = product.precioCosto ?? 0
+  const sale = product.precioVenta ?? 0
+  const stock = product.stockActual ?? 0
+  const margin = sale - cost
+  const marginPercent = cost > 0 ? ((sale - cost) / cost) * 100 : 0
   return (
-    <tr className="border-b border-[#1f2937] text-[#b6c7dc]">
-      <TableCell>
-        <strong className="block text-white">{product.nombre}</strong>
-        <span className="text-sm text-[#64748b]">{product.variante || '-'}</span>
-      </TableCell>
+    <tr className={`border-b border-[#1f2937] text-[#b6c7dc] ${!(product.isActive ?? true) ? 'opacity-50' : ''}`}>
+      <TableCell><strong className="block text-white">{product.nombre}</strong><span className="text-sm text-[#64748b]">{product.variante || '-'}</span></TableCell>
       <TableCell>{product.categoria}</TableCell>
-      <TableCell>{formatCurrency(product.costo)}</TableCell>
-      <TableCell><strong className="text-white">{formatCurrency(product.venta)}</strong></TableCell>
-      <TableCell>
-        <span className="font-bold text-[#22c55e]">+{formatCurrency(margin)}</span>{' '}
-        <span className="text-xs text-[#64748b]">({marginPercent.toFixed(2)}%)</span>
-      </TableCell>
-      <TableCell><span className="rounded border border-[#22c55e] bg-[#064e2a] px-3 py-1 font-bold text-[#4ade80]">{product.stock} u.</span></TableCell>
-      <TableCell><span className="font-bold text-[#4ade80]">{product.activo ? 'Activo' : 'Inactivo'}</span></TableCell>
-      <TableCell><ProductActions onDelete={onDelete} onEdit={onEdit} product={product} /></TableCell>
+      <TableCell>{formatCurrency(cost)}</TableCell>
+      <TableCell><strong className="text-white">{formatCurrency(sale)}</strong></TableCell>
+      <TableCell><span className="font-bold text-[#22c55e]">+{formatCurrency(margin)}</span> <span className="text-xs text-[#64748b]">({marginPercent.toFixed(1)}%)</span></TableCell>
+      <TableCell><span className={`rounded border px-3 py-1 font-bold ${stock < 5 ? 'border-[#ef4444] bg-[#451a1a] text-[#fca5a5]' : 'border-[#22c55e] bg-[#064e2a] text-[#4ade80]'}`}>{stock} u.</span></TableCell>
+      <TableCell><span className="font-bold text-[#4ade80]">{(product.isActive ?? true) ? 'Activo' : 'Inactivo'}</span></TableCell>
+      <TableCell><ProductActions onDelete={onDelete} onEdit={onEdit} onStock={onStock} product={product} /></TableCell>
     </tr>
   )
 }
 
-function ProductCard({ onDelete, onEdit, product }: ProductActionsProps) {
-  const margin = product.venta - product.costo
-
+function ProductCard({ onDelete, onEdit, onStock, product }: ProductActionsProps) {
+  const cost = product.precioCosto ?? 0
+  const sale = product.precioVenta ?? 0
+  const stock = product.stockActual ?? 0
+  const margin = sale - cost
   return (
-    <article className="rounded-lg border border-[#1f2937] bg-[#111827] p-4">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h2 className="font-bold text-white">{product.nombre}</h2>
-          <p className="text-sm text-[#64748b]">{product.variante || 'Sin variante'}</p>
-        </div>
-        <span className="rounded border border-[#22c55e] bg-[#064e2a] px-3 py-1 font-bold text-[#4ade80]">{product.stock} u.</span>
-      </div>
-      <div className="mt-4 grid grid-cols-2 gap-3 text-sm text-[#b6c7dc]">
-        <p>Categoría: <strong>{product.categoria}</strong></p>
-        <p>Estado: <strong className="text-[#4ade80]">{product.activo ? 'Activo' : 'Inactivo'}</strong></p>
-        <p>Costo: <strong>{formatCurrency(product.costo)}</strong></p>
-        <p>Venta: <strong className="text-white">{formatCurrency(product.venta)}</strong></p>
-        <p className="col-span-2">Margen: <strong className="text-[#22c55e]">+{formatCurrency(margin)}</strong></p>
-      </div>
-      <div className="mt-4">
-        <ProductActions onDelete={onDelete} onEdit={onEdit} product={product} />
-      </div>
+    <article className={`rounded-lg border border-[#1f2937] bg-[#111827] p-4 ${!(product.isActive ?? true) ? 'opacity-50' : ''}`}>
+      <div className="flex items-start justify-between gap-4"><div><h2 className="font-bold text-white">{product.nombre}</h2><p className="text-sm text-[#64748b]">{product.variante || 'Sin variante'}</p></div><span className={`rounded border px-3 py-1 font-bold ${stock < 5 ? 'border-[#ef4444] bg-[#451a1a] text-[#fca5a5]' : 'border-[#22c55e] bg-[#064e2a] text-[#4ade80]'}`}>{stock} u.</span></div>
+      <div className="mt-4 grid grid-cols-2 gap-3 text-sm text-[#b6c7dc]"><p>Categoría: <strong>{product.categoria}</strong></p><p>Estado: <strong className="text-[#4ade80]">{(product.isActive ?? true) ? 'Activo' : 'Inactivo'}</strong></p><p>Costo: <strong>{formatCurrency(cost)}</strong></p><p>Venta: <strong className="text-white">{formatCurrency(sale)}</strong></p><p className="col-span-2">Margen: <strong className="text-[#22c55e]">+{formatCurrency(margin)}</strong></p></div>
+      <div className="mt-4"><ProductActions onDelete={onDelete} onEdit={onEdit} onStock={onStock} product={product} /></div>
     </article>
   )
 }
 
-type CellProps = {
-  children: React.ReactNode
-}
-
-function TableHead({ children }: CellProps) {
+function TableHead({ children }: { children: React.ReactNode }) {
   return <th className="px-4 py-4 font-bold">{children}</th>
 }
 
-function TableCell({ children }: CellProps) {
+function TableCell({ children }: { children: React.ReactNode }) {
   return <td className="px-4 py-4 align-middle">{children}</td>
 }
 
-type PaginationProps = {
-  currentPage: number
-  onPageChange: (page: number) => void
-  totalItems: number
-  totalPages: number
-}
-
-function Pagination({ currentPage, onPageChange, totalItems, totalPages }: PaginationProps) {
+function Pagination({ currentPage, onPageChange, totalItems, totalPages }: { currentPage: number; onPageChange: (page: number) => void; totalItems: number; totalPages: number }) {
   return (
     <div className="mt-5 flex flex-col gap-3 text-[#a0a0a0] sm:flex-row sm:items-center sm:justify-between">
-      <p>
-        Mostrando página {currentPage} de {totalPages} · {totalItems} productos
-      </p>
+      <p>Mostrando página {currentPage} de {totalPages} · {totalItems} productos</p>
       <div className="flex gap-2">
-        <button
-          className="inline-flex items-center gap-2 rounded-lg bg-[#1f2937] px-4 py-2 text-white disabled:opacity-40"
-          disabled={currentPage === 1}
-          onClick={() => onPageChange(Math.max(1, currentPage - 1))}
-          type="button"
-        >
-          <ChevronLeft className="h-4 w-4" />
-          Anterior
-        </button>
-        <button
-          className="inline-flex items-center gap-2 rounded-lg bg-[#1f2937] px-4 py-2 text-white disabled:opacity-40"
-          disabled={currentPage === totalPages}
-          onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
-          type="button"
-        >
-          Siguiente
-          <ChevronRight className="h-4 w-4" />
-        </button>
+        <button className="inline-flex items-center gap-2 rounded-lg bg-[#1f2937] px-4 py-2 text-white disabled:opacity-40" disabled={currentPage === 1} onClick={() => onPageChange(Math.max(1, currentPage - 1))} type="button"><ChevronLeft className="h-4 w-4" />Anterior</button>
+        <button className="inline-flex items-center gap-2 rounded-lg bg-[#1f2937] px-4 py-2 text-white disabled:opacity-40" disabled={currentPage === totalPages} onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))} type="button">Siguiente<ChevronRight className="h-4 w-4" /></button>
       </div>
     </div>
   )
 }
 
-type FormInputProps = {
-  label: string
-  onChange: (value: string) => void
-  optional?: boolean
-  placeholder?: string
-  type?: 'text' | 'number'
-  value: string
-}
-
-function FormInput({ label, onChange, optional = false, placeholder, type = 'text', value }: FormInputProps) {
+function FormInput({ label, onChange, optional = false, placeholder, type = 'text', value }: { label: string; onChange: (value: string) => void; optional?: boolean; placeholder?: string; type?: 'text' | 'number'; value: string }) {
   return (
-    <label className="block">
-      <span className="font-bold">
-        {label} {optional ? <span className="font-normal text-[#6b7280]">(opcional)</span> : '*'}
-      </span>
-      <input
-        className="mt-2 w-full rounded-lg border border-[#475569] bg-[#1f2937] px-4 py-3 text-white outline-none placeholder:text-[#9ca3af] focus:border-[#f5c518]"
-        min={type === 'number' ? '0' : undefined}
-        onChange={(event) => onChange(event.target.value)}
-        placeholder={placeholder}
-        required={!optional}
-        type={type}
-        value={value}
-      />
-    </label>
+    <label className="block"><span className="font-bold">{label} {optional ? <span className="font-normal text-[#6b7280]">(opcional)</span> : '*'}</span><input className="mt-2 w-full rounded-lg border border-[#475569] bg-[#1f2937] px-4 py-3 text-white outline-none placeholder:text-[#9ca3af] focus:border-[#f5c518]" min={type === 'number' ? '0' : undefined} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} required={!optional} type={type} value={value} /></label>
   )
 }
 
-type SaleFormProps = {
-  products: StockProduct[]
-}
-
-function SaleForm({ products }: SaleFormProps) {
+function SaleForm({ onSubmit, products, sale, saleError, setSale }: { onSubmit: (event: FormEvent<HTMLFormElement>) => void; products: Producto[]; sale: SaleFormState; saleError: string | null; setSale: React.Dispatch<React.SetStateAction<SaleFormState>> }) {
+  const selectedProduct = products.find((product) => product.id === sale.productoId)
+  const total = (selectedProduct?.precioVenta ?? 0) * (Number(sale.cantidad) || 0)
   return (
-    <section className="mt-6 rounded-lg bg-[#1f2937] p-6">
+    <form className="mt-6 rounded-lg bg-[#1f2937] p-6" onSubmit={onSubmit}>
       <h2 className="text-xl font-bold">Registrar Venta de Producto</h2>
       <div className="mt-6 grid gap-4 lg:grid-cols-[1fr_140px_140px]">
-        <label className="block">
-          <span className="font-bold">Producto *</span>
-          <select className="mt-2 w-full rounded-lg border border-[#6b5600] bg-[#0a0a0a] px-4 py-3 text-white outline-none focus:border-[#f5c518]">
-            <option>Buscá por nombre, variante o categoría...</option>
-            {products.map((product) => (
-              <option key={product.id}>{product.nombre} {product.variante}</option>
-            ))}
-          </select>
-        </label>
-        <FormInput label="Cantidad" onChange={() => undefined} type="number" value="1" />
-        <FormInput label="Precio unit." onChange={() => undefined} type="number" value="0.00" />
+        <label className="block"><span className="font-bold">Producto *</span><select className="mt-2 w-full rounded-lg border border-[#6b5600] bg-[#0a0a0a] px-4 py-3 text-white outline-none focus:border-[#f5c518]" onChange={(event) => setSale((current) => ({ ...current, productoId: event.target.value }))} value={sale.productoId}>{products.map((product) => <option key={product.id} value={product.id}>{product.nombre} {product.variante}</option>)}</select></label>
+        <FormInput label="Cantidad" onChange={(value) => setSale((current) => ({ ...current, cantidad: value }))} type="number" value={sale.cantidad} />
+        <FormInput label="Precio unit." onChange={() => undefined} type="number" value={String(selectedProduct?.precioVenta ?? 0)} />
       </div>
       <div className="mt-5 grid gap-4 lg:grid-cols-[176px_1fr]">
-        <div className="rounded-lg border border-[#334155] bg-[#111827] p-4 text-center">
-          <p className="text-xs uppercase text-[#64748b]">Total</p>
-          <p className="mt-2 text-xl font-bold text-[#a0a0a0]">-</p>
-        </div>
-        <div>
-          <p className="mb-2 font-bold">Método de pago</p>
-          <div className="grid gap-2 md:grid-cols-3">
-            {['Efectivo', 'Transferencia', 'Tarjeta'].map((method, index) => (
-              <button className={`rounded-lg border px-4 py-3 font-bold ${index === 0 ? 'border-[#f5c518] bg-[#f5c518]/10' : 'border-[#334155]'}`} key={method} type="button">
-                {method}
-              </button>
-            ))}
-          </div>
-        </div>
+        <div className="rounded-lg border border-[#334155] bg-[#111827] p-4 text-center"><p className="text-xs uppercase text-[#64748b]">Total</p><p className="mt-2 text-xl font-bold text-[#a0a0a0]">{formatCurrency(total)}</p></div>
+        <div><p className="mb-2 font-bold">Método de pago</p><div className="grid gap-2 md:grid-cols-3">{(['EFECTIVO', 'TRANSFERENCIA', 'TARJETA'] as MetodoPagoMock[]).map((method) => <button className={`rounded-lg border px-4 py-3 font-bold ${sale.metodoPago === method ? 'border-[#f5c518] bg-[#f5c518]/10' : 'border-[#334155]'}`} key={method} onClick={() => setSale((current) => ({ ...current, metodoPago: method }))} type="button">{method}</button>)}</div></div>
       </div>
-      <div className="mt-5 grid gap-4 md:grid-cols-2">
-        <FormInput label="Vendedor" onChange={() => undefined} optional placeholder="Nombre del vendedor" value="" />
-        <FormInput label="Notas" onChange={() => undefined} optional placeholder="Observaciones..." value="" />
-      </div>
-      <button className="mt-5 w-full rounded-lg bg-[#e5c04f] px-4 py-4 font-bold text-[#111827] hover:bg-[#f5c518]" type="button">
-        Confirmar Venta
-      </button>
-    </section>
+      <div className="mt-5 grid gap-4 md:grid-cols-2"><FormInput label="Vendedor" onChange={(value) => setSale((current) => ({ ...current, vendedorId: value }))} optional placeholder="Nombre del vendedor" value={sale.vendedorId} /><FormInput label="Notas" onChange={(value) => setSale((current) => ({ ...current, notas: value }))} optional placeholder="Observaciones..." value={sale.notas} /></div>
+      {saleError ? <p className="mt-4 text-sm font-bold text-red-300">{saleError}</p> : null}
+      <button className="mt-5 w-full rounded-lg bg-[#e5c04f] px-4 py-4 font-bold text-[#111827] hover:bg-[#f5c518]" type="submit">Confirmar Venta</button>
+    </form>
   )
 }
 
-function SalesHistory() {
+function SalesHistory({ historyDate, historyPayment, products, sales, setHistoryDate, setHistoryPayment }: { historyDate: string; historyPayment: MetodoPagoMock | 'TODOS'; products: Producto[]; sales: Venta[]; setHistoryDate: (date: string) => void; setHistoryPayment: (method: MetodoPagoMock | 'TODOS') => void }) {
+  const total = sales.reduce((sum, sale) => sum + sale.total, 0)
   return (
     <>
-      <section className="mt-6 flex flex-col gap-4 rounded-lg bg-[#1f2937] p-4 sm:flex-row sm:items-center">
-        <label className="font-bold">Fecha:</label>
-        <input className="rounded-lg border border-[#6b5600] bg-[#0a0a0a] px-4 py-3 text-white" type="date" defaultValue="2026-05-31" />
-        <button className="rounded-lg bg-[#e5c04f] px-6 py-3 font-bold text-[#111827] hover:bg-[#f5c518]" type="button">
-          Actualizar
-        </button>
-      </section>
-      <section className="mt-5 grid gap-4 md:grid-cols-4">
-        <SummaryCard accent="border-l-[#3b82f6]" label="Ventas del día" value={0} />
-        <article className="rounded-lg bg-[#e5c04f] p-6 text-[#111827] shadow-lg shadow-[#e5c04f]/20">
-          <p className="font-bold">Total vendido</p>
-          <p className="mt-3 text-3xl font-bold">$0,00</p>
-        </article>
-        <article className="rounded-lg border-l-4 border-l-[#64748b] bg-[#1f2937] p-6">
-          <p className="font-bold text-[#9fb3ca]">Efectivo</p>
-          <p className="mt-3 text-2xl font-bold text-white">$0,00</p>
-        </article>
-        <article className="rounded-lg border-l-4 border-l-[#64748b] bg-[#1f2937] p-6">
-          <p className="font-bold text-[#9fb3ca]">Transf. + Tarjeta</p>
-          <p className="mt-3 text-2xl font-bold text-white">$0,00</p>
-        </article>
-      </section>
-      <section className="mt-5 rounded-lg border border-[#1f2937] bg-[#111827] p-14 text-center text-[#6b7280]">
-        No hay ventas registradas para esta fecha.
-      </section>
+      <section className="mt-6 flex flex-col gap-4 rounded-lg bg-[#1f2937] p-4 sm:flex-row sm:items-center"><label className="font-bold">Fecha:</label><input className="rounded-lg border border-[#6b5600] bg-[#0a0a0a] px-4 py-3 text-white" onChange={(event) => setHistoryDate(event.target.value)} type="date" value={historyDate} /><select className="rounded-lg border border-[#6b5600] bg-[#0a0a0a] px-4 py-3 text-white" onChange={(event) => setHistoryPayment(event.target.value as MetodoPagoMock | 'TODOS')} value={historyPayment}><option value="TODOS">Todos</option><option value="EFECTIVO">Efectivo</option><option value="TRANSFERENCIA">Transferencia</option><option value="TARJETA">Tarjeta</option></select><button className="rounded-lg bg-[#e5c04f] px-6 py-3 font-bold text-[#111827] hover:bg-[#f5c518]" type="button">Actualizar</button></section>
+      <section className="mt-5 grid gap-4 md:grid-cols-4"><SummaryCard accent="border-l-[#3b82f6]" label="Ventas del día" value={sales.length} /><article className="rounded-lg bg-[#e5c04f] p-6 text-[#111827] shadow-lg shadow-[#e5c04f]/20"><p className="font-bold">Total vendido</p><p className="mt-3 text-3xl font-bold">{formatCurrency(total)}</p></article><article className="rounded-lg border-l-4 border-l-[#64748b] bg-[#1f2937] p-6"><p className="font-bold text-[#9fb3ca]">Efectivo</p><p className="mt-3 text-2xl font-bold text-white">{formatCurrency(sales.filter((sale) => sale.metodoPago === 'EFECTIVO').reduce((sum, sale) => sum + sale.total, 0))}</p></article><article className="rounded-lg border-l-4 border-l-[#64748b] bg-[#1f2937] p-6"><p className="font-bold text-[#9fb3ca]">Transf. + Tarjeta</p><p className="mt-3 text-2xl font-bold text-white">{formatCurrency(sales.filter((sale) => sale.metodoPago !== 'EFECTIVO').reduce((sum, sale) => sum + sale.total, 0))}</p></article></section>
+      <section className="mt-5 rounded-lg border border-[#1f2937] bg-[#111827] p-6 text-[#d1d5db]">{sales.length === 0 ? <p className="p-8 text-center text-[#6b7280]">No hay ventas registradas para esta fecha.</p> : <div className="space-y-3">{sales.map((sale) => <div className="grid gap-2 rounded-lg bg-[#1f2937] p-4 md:grid-cols-[1fr_auto_auto]" key={sale.id}><span>{products.find((product) => product.id === sale.productoId)?.nombre ?? sale.productoId} · {sale.cantidad} u.</span><span>{sale.metodoPago}</span><strong>{formatCurrency(sale.total)}</strong></div>)}</div>}</section>
     </>
   )
 }

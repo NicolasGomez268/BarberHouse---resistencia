@@ -1,6 +1,7 @@
 import { AlertTriangle, Eye, Pencil, Plus, Trash2, X } from 'lucide-react'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
+import { useServicios } from '../features/servicios/hooks/useServicios'
 import type { Servicio } from '../types'
 
 type ServicioForm = {
@@ -10,54 +11,6 @@ type ServicioForm = {
   duracionMinutos: string
   activo: boolean
 }
-
-type ServicioItem = Servicio & {
-  descripcion: string
-  activo: boolean
-}
-
-const initialServicios: ServicioItem[] = [
-  {
-    id: 'servicio-1',
-    nombre: 'Arreglo de Barba',
-    descripcion: 'Perfilado y arreglo completo de barba',
-    precio: 6000,
-    duracionMinutos: 20,
-    activo: true,
-  },
-  {
-    id: 'servicio-2',
-    nombre: 'Corte + Barba',
-    descripcion: 'Combo completo: corte de cabello y arreglo de barba',
-    precio: 13000,
-    duracionMinutos: 45,
-    activo: true,
-  },
-  {
-    id: 'servicio-3',
-    nombre: 'Corte de Cabello',
-    descripcion: 'Corte clásico con máquina y tijera',
-    precio: 8000,
-    duracionMinutos: 30,
-    activo: true,
-  },
-  {
-    id: 'servicio-4',
-    nombre: 'Depilación Facial',
-    descripcion: 'Depilación completa de rostro',
-    precio: 5000,
-    duracionMinutos: 25,
-    activo: true,
-  },
-  {
-    id: 'servicio-5',
-    nombre: 'Depilación de Cejas',
-    descripcion: 'Perfilado y limpieza de cejas',
-    precio: 3500,
-    duracionMinutos: 15,
-    activo: true,
-  },
-]
 
 const emptyForm: ServicioForm = {
   nombre: '',
@@ -71,22 +24,23 @@ function formatPrice(price: number) {
   return `$${new Intl.NumberFormat('es-AR').format(price)}`
 }
 
-function formFromServicio(servicio: ServicioItem): ServicioForm {
+function formFromServicio(servicio: Servicio): ServicioForm {
   return {
     nombre: servicio.nombre,
-    descripcion: servicio.descripcion,
+    descripcion: servicio.descripcion ?? '',
     precio: String(servicio.precio),
     duracionMinutos: String(servicio.duracionMinutos),
-    activo: servicio.activo,
+    activo: servicio.isActive ?? true,
   }
 }
 
 export function ServiciosPage() {
-  const [servicios, setServicios] = useState<ServicioItem[]>(initialServicios)
+  const { servicios, agregarServicio, actualizarServicio, eliminarServicio } = useServicios()
   const [form, setForm] = useState<ServicioForm>(emptyForm)
-  const [editingServicio, setEditingServicio] = useState<ServicioItem | null>(null)
+  const [editingServicio, setEditingServicio] = useState<Servicio | null>(null)
   const [isFormOpen, setIsFormOpen] = useState(false)
-  const [deletingServicio, setDeletingServicio] = useState<ServicioItem | null>(null)
+  const [deletingServicio, setDeletingServicio] = useState<Servicio | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   const isEditing = editingServicio !== null
 
@@ -96,7 +50,7 @@ export function ServiciosPage() {
     setIsFormOpen(true)
   }
 
-  function openEditModal(servicio: ServicioItem) {
+  function openEditModal(servicio: Servicio) {
     setForm(formFromServicio(servicio))
     setEditingServicio(servicio)
     setIsFormOpen(true)
@@ -121,17 +75,13 @@ export function ServiciosPage() {
       descripcion: form.descripcion.trim(),
       precio: Number.isFinite(precio) ? precio : 0,
       duracionMinutos: Number.isFinite(duracionMinutos) ? duracionMinutos : 0,
-      activo: form.activo,
+      isActive: form.activo,
     }
 
     if (editingServicio) {
-      setServicios((currentServicios) =>
-        currentServicios.map((servicio) =>
-          servicio.id === editingServicio.id ? { ...servicio, ...payload } : servicio,
-        ),
-      )
+      actualizarServicio(editingServicio.id, payload)
     } else {
-      setServicios((currentServicios) => [{ id: crypto.randomUUID(), ...payload }, ...currentServicios])
+      agregarServicio(payload)
     }
 
     closeFormModal()
@@ -140,8 +90,13 @@ export function ServiciosPage() {
   function confirmDelete() {
     if (!deletingServicio) return
 
-    setServicios((currentServicios) => currentServicios.filter((servicio) => servicio.id !== deletingServicio.id))
-    setDeletingServicio(null)
+    try {
+      eliminarServicio(deletingServicio.id)
+      setDeletingServicio(null)
+      setDeleteError(null)
+    } catch (error) {
+      setDeleteError(error instanceof Error ? error.message : 'No se pudo eliminar el servicio')
+    }
   }
 
   return (
@@ -171,10 +126,10 @@ export function ServiciosPage() {
             <div className="flex items-center justify-between gap-4">
               <span
                 className={`rounded-full px-3 py-1 text-sm font-bold ${
-                  servicio.activo ? 'bg-[#064e2a] text-[#4ade80]' : 'bg-[#374151] text-[#a0a0a0]'
+                  (servicio.isActive ?? true) ? 'bg-[#064e2a] text-[#4ade80]' : 'bg-[#374151] text-[#a0a0a0]'
                 }`}
               >
-                ✓ {servicio.activo ? 'Activo' : 'Inactivo'}
+                ✓ {(servicio.isActive ?? true) ? 'Activo' : 'Inactivo'}
               </span>
               <Eye className="h-5 w-5 text-[#d1d5db]" />
             </div>
@@ -202,7 +157,10 @@ export function ServiciosPage() {
               <button
                 aria-label={`Eliminar ${servicio.nombre}`}
                 className="inline-flex items-center justify-center rounded-lg bg-[#e9282d] px-4 py-3 text-white transition hover:bg-[#dc2626]"
-                onClick={() => setDeletingServicio(servicio)}
+                onClick={() => {
+                  setDeleteError(null)
+                  setDeletingServicio(servicio)
+                }}
                 type="button"
               >
                 <Trash2 className="h-5 w-5" />
@@ -328,6 +286,7 @@ export function ServiciosPage() {
             <h2 className="mt-5 text-xl font-bold">Eliminar servicio</h2>
             <p className="mt-4 text-[#d1d5db]">¿Estás seguro de eliminar "{deletingServicio.nombre}"?</p>
             <p className="mt-8 text-[#d1d5db]">⚠️ Esta acción no se puede deshacer.</p>
+            {deleteError ? <p className="mt-4 rounded-lg bg-red-500/10 p-3 text-sm font-bold text-red-300">{deleteError}</p> : null}
 
             <div className="mt-7 grid grid-cols-2 gap-3">
               <button
