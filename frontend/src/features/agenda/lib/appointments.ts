@@ -1,4 +1,4 @@
-import type { Barbero, HorarioSemanal, Servicio, Turno } from '../../../types'
+import type { Barbero, HorarioSemanal, Servicio, Turno, TurnoFijo } from '../../../types'
 
 export type AvailableSlot = {
   start: string
@@ -10,6 +10,7 @@ export type GetAvailableSlotsParams = {
   date: string
   serviceDuration: number
   turnos: Turno[]
+  turnosFijos?: TurnoFijo[]
   barberos: Barbero[]
   servicios: Servicio[]
   horarios: HorarioSemanal[]
@@ -47,7 +48,12 @@ function getScheduleDayIndex(date: string) {
 }
 
 function isBlockingTurno(turno: Turno) {
-  return turno.estado !== 'CANCELADO' && turno.estado !== 'NO_ASISTIO' && turno.estado !== 'cancelado'
+  return (
+    turno.estado !== 'CANCELADO' &&
+    turno.estado !== 'NO_ASISTIO' &&
+    turno.estado !== 'AUSENTE_FIJO' &&
+    turno.estado !== 'cancelado'
+  )
 }
 
 function getServiceDuration(servicios: Servicio[], serviceId: string) {
@@ -60,6 +66,24 @@ function getTurnoEnd(turno: Turno, servicios: Servicio[]) {
   return minutesToTime(timeToMinutes(turno.hora ?? '00:00') + duration)
 }
 
+function isTurnoFijoBlockingDate(turnoFijo: TurnoFijo, date: string) {
+  if (!turnoFijo.activo) return false
+  if (turnoFijo.pausadoHasta && turnoFijo.pausadoHasta >= date) return false
+  return turnoFijo.fechasAgendadas.includes(date)
+}
+
+function hasReleasedFixedTurno(turnos: Turno[], turnoFijoId: string, date: string) {
+  return turnos.some(
+    (turno) =>
+      turno.turnoFijoId === turnoFijoId &&
+      turno.fecha === date &&
+      (turno.estado === 'AUSENTE_FIJO' ||
+        turno.estado === 'CANCELADO' ||
+        turno.estado === 'NO_ASISTIO' ||
+        turno.estado === 'cancelado'),
+  )
+}
+
 function overlaps(newStart: number, newEnd: number, busyStart: number, busyEnd: number) {
   return newStart < busyEnd && newEnd > busyStart
 }
@@ -69,6 +93,7 @@ export function getAvailableSlots({
   date,
   serviceDuration,
   turnos,
+  turnosFijos = [],
   barberos,
   servicios,
   horarios,
@@ -88,6 +113,23 @@ export function getAvailableSlots({
       start: timeToMinutes(turno.hora ?? '00:00'),
       end: timeToMinutes(getTurnoEnd(turno, servicios)),
     }))
+
+  turnosFijos
+    .filter(
+      (turnoFijo) =>
+        turnoFijo.barberoId === barberId &&
+        isTurnoFijoBlockingDate(turnoFijo, date) &&
+        !hasReleasedFixedTurno(turnos, turnoFijo.id, date),
+    )
+    .forEach((turnoFijo) => {
+      const duration = getServiceDuration(servicios, turnoFijo.servicioId)
+      const start = timeToMinutes(turnoFijo.hora)
+
+      busyRanges.push({
+        start,
+        end: start + duration,
+      })
+    })
 
   if (daySchedule.descansoInicio && daySchedule.descansoFin) {
     busyRanges.push({
