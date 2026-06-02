@@ -140,12 +140,62 @@ function generateTurnosPorDia(): Turno[] {
   )
 }
 
-export const MOCK_TURNOS: Turno[] = generateTurnosPorDia()
+export const MOCK_TURNOS: Turno[] = [
+  ...generateTurnosPorDia(),
+  {
+    id: 't-21',
+    sucursalId: 's1',
+    fecha: offset(0),
+    hora: '16:00',
+    barberoId: 'barbero-1',
+    servicioId: 'srv-1',
+    clienteNombre: 'Nicolas Garcia',
+    clienteTelefono: '3731662839',
+    estado: 'AUSENTE_FIJO',
+    esFijo: true,
+    turnoFijoId: 'tf-1',
+    creadoPor: 'barbero-1',
+  },
+]
 
 export const MOCK_TURNOS_FIJOS: TurnoFijo[] = [
-  { id: 'tf-1', sucursalId: 's1', barberoId: 'barbero-1', servicioId: 'srv-2', clienteNombre: 'Nicolás García', clienteTelefono: '3731662839', diaSemana: 1, hora: '10:30', frecuenciaSemanas: 1, activo: true, proximaFecha: offset(7) },
-  { id: 'tf-2', sucursalId: 's1', barberoId: 'barbero-2', servicioId: 'srv-1', clienteNombre: 'Mateo Silva', clienteTelefono: '3623333333', diaSemana: 3, hora: '14:00', frecuenciaSemanas: 2, activo: true, proximaFecha: offset(14) },
-  { id: 'tf-3', sucursalId: 's2', barberoId: 'barbero-3', servicioId: 'srv-2', clienteNombre: 'Rodrigo Salas', clienteTelefono: '3620000000', diaSemana: 5, hora: '13:00', frecuenciaSemanas: 1, activo: true, proximaFecha: offset(7) },
+  {
+    id: 'tf-1',
+    sucursalId: 's1',
+    barberoId: 'barbero-1',
+    servicioId: 'srv-2',
+    clienteNombre: 'Nicolas Garcia',
+    clienteTelefono: '3731662839',
+    hora: '10:30',
+    fechasAgendadas: [offset(7), offset(14), offset(21), offset(28)],
+    activo: true,
+    proximaFecha: offset(7),
+  },
+  {
+    id: 'tf-2',
+    sucursalId: 's1',
+    barberoId: 'barbero-2',
+    servicioId: 'srv-1',
+    clienteNombre: 'Mateo Silva',
+    clienteTelefono: '3623333333',
+    hora: '14:00',
+    fechasAgendadas: [offset(14), offset(28)],
+    activo: true,
+    proximaFecha: offset(14),
+  },
+  {
+    id: 'tf-3',
+    sucursalId: 's2',
+    barberoId: 'barbero-3',
+    servicioId: 'srv-2',
+    clienteNombre: 'Rodrigo Salas',
+    clienteTelefono: '3620000000',
+    hora: '13:00',
+    fechasAgendadas: [offset(7), offset(21)],
+    activo: true,
+    proximaFecha: offset(7),
+  },
 ]
 
 export const agendaMock: Turno[] = MOCK_TURNOS
+

@@ -1,5 +1,6 @@
 import { Banknote, Boxes, CalendarDays, LogOut, Scissors, Users } from 'lucide-react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import barberHouseLogo from '../../assets/barber-house-logo.svg'
 import { useAuth } from '../hooks/useAuth'
 
 const links = [
@@ -23,6 +24,11 @@ export function AdminLayout() {
     <div className="min-h-screen bg-background pb-28 text-text-primary md:pb-0">
       <aside className="hidden border-b border-[#111111] bg-[#050505] px-4 py-4 md:fixed md:inset-y-0 md:left-0 md:z-30 md:block md:w-60 md:border-b-0 md:border-r md:py-6">
         <div className="mb-4 md:mb-8">
+          <img
+            alt="Barber House"
+            className="mb-4 h-auto w-full rounded-lg border border-[#111111] bg-black object-contain"
+            src={barberHouseLogo}
+          />
           <p className="text-xs uppercase tracking-widest text-[#a0a0a0]">Peluquería</p>
           <h1 className="mt-1 text-xl font-bold text-white">Administración</h1>
         </div>
@@ -82,3 +88,5 @@ export function AdminLayout() {
     </div>
   )
 }
+
+

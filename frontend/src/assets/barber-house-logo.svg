@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1366 912" role="img" aria-labelledby="title">
+  <title id="title">Barber House logo</title>
+  <rect width="1366" height="912" fill="#000000"/>
+  <path d="M73 85h165v60H133v103H73zM1199 89h165v158h-60V149h-105zM73 741h60v105h104v60H73zM1304 743h60v163h-165v-60h105z" fill="#ffffff"/>
+  <g fill="#ffffff" font-family="Arial Black, Impact, Arial, sans-serif" font-style="italic" font-weight="900" text-anchor="middle">
+    <text x="683" y="391" font-size="195" letter-spacing="2">BARBER</text>
+    <text x="683" y="628" font-size="195" letter-spacing="2">HOUSE</text>
+  </g>
+</svg>
