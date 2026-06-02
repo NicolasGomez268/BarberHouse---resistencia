@@ -4,6 +4,7 @@ import { useTurnos } from '../features/agenda/hooks/useTurnos'
 import { getAvailableSlots } from '../features/agenda/lib/appointments'
 import { MOCK_BARBEROS, MOCK_HORARIOS, MOCK_SERVICIOS } from '../mocks'
 import type { MetodoPagoMock, Turno } from '../types'
+import barberHouseCalendarBg from '../assets/barber-house-calendar-bg.svg'
 
 type CalendarDay = {
   date: Date
@@ -270,11 +271,19 @@ export function AgendaPage() {
         </div>
       </header>
 
-      <section className="mt-6 rounded-2xl border border-[#1f2937] bg-[#111827] p-3 md:p-4">
-        <div className="mx-auto mb-5 grid max-w-xl grid-cols-[auto_1fr_auto] items-center gap-3 rounded-[1.5rem] border border-[#2a2a4a] bg-[#1a1a2e] p-2 md:max-w-none md:border-0 md:bg-transparent md:p-0">
+      <section
+        className="relative mt-6 overflow-hidden rounded-2xl border border-[#111111] bg-[#050505] p-3 md:p-4"
+      >
+        <div
+          className="absolute inset-0 bg-center bg-no-repeat opacity-[0.28]"
+          style={{ backgroundImage: `url(${barberHouseCalendarBg})`, backgroundSize: '62%' }}
+        />
+        <div className="absolute inset-0 bg-black/88" />
+        <div className="relative z-10">
+        <div className="mx-auto mb-5 grid max-w-xl grid-cols-[auto_1fr_auto] items-center gap-3 rounded-[1.5rem] border border-[#2a2a2a] bg-[#0f0f0f] p-2 md:max-w-none md:border-0 md:bg-transparent md:p-0">
           <button
             aria-label="Mes anterior"
-            className="flex h-14 w-14 items-center justify-center rounded-[1.25rem] bg-[#1f2937] text-4xl leading-none text-white md:h-8 md:w-8 md:rounded-full md:text-2xl"
+            className="flex h-14 w-14 items-center justify-center rounded-[1.25rem] bg-[#111111] text-4xl leading-none text-white md:h-8 md:w-8 md:rounded-full md:text-2xl"
             onClick={prevMonth}
             type="button"
           >
@@ -283,7 +292,7 @@ export function AgendaPage() {
           <h2 className="text-center text-2xl font-black text-white md:text-xl md:font-bold">{monthLabel}</h2>
           <button
             aria-label="Mes siguiente"
-            className="flex h-14 w-14 items-center justify-center rounded-[1.25rem] bg-[#1f2937] text-4xl leading-none text-white md:h-8 md:w-8 md:rounded-full md:text-2xl"
+            className="flex h-14 w-14 items-center justify-center rounded-[1.25rem] bg-[#111111] text-4xl leading-none text-white md:h-8 md:w-8 md:rounded-full md:text-2xl"
             onClick={nextMonth}
             type="button"
           >
@@ -292,11 +301,11 @@ export function AgendaPage() {
         </div>
 
         <div className="mb-5 flex justify-center gap-3 md:hidden">
-          <div className="flex items-center gap-2 rounded-xl border border-[#2a2a4a] bg-[#0a0a0a] px-4 py-2 text-sm font-bold text-white">
+          <div className="flex items-center gap-2 rounded-xl border border-[#2a2a2a] bg-[#0a0a0a] px-4 py-2 text-sm font-bold text-white">
             <span className="h-4 w-4 rounded-full bg-white" />
             Hoy
           </div>
-          <div className="flex items-center gap-2 rounded-xl border border-[#2a2a4a] bg-[#0a0a0a] px-4 py-2 text-sm font-bold text-white">
+          <div className="flex items-center gap-2 rounded-xl border border-[#2a2a2a] bg-[#0a0a0a] px-4 py-2 text-sm font-bold text-white">
             <span className="h-4 w-4 rounded-full bg-[#f5c518]" />
             Con turnos
           </div>
@@ -306,7 +315,7 @@ export function AgendaPage() {
           <div className="grid grid-cols-7 gap-2 md:min-w-[720px]">
             {weekDays.map((day) => (
               <div
-                className="border-[#374151] py-2 text-center text-sm font-black text-[#9ca3af] md:rounded-lg md:border md:bg-[#1f2937] md:py-3 md:font-medium"
+                className="border-[#333333] py-2 text-center text-sm font-black text-[#9ca3af] md:rounded-lg md:border md:bg-[#111111]/85 md:py-3 md:font-medium"
                 key={day}
               >
                 {day}
@@ -322,9 +331,9 @@ export function AgendaPage() {
 
               return (
                 <button
-                  className={`relative flex min-h-[112px] items-center justify-center rounded-2xl border bg-[#111827] p-1 text-center align-top transition md:block md:min-h-[80px] md:rounded-lg md:p-2 md:text-left ${
+                  className={`relative flex min-h-[112px] items-center justify-center rounded-2xl border bg-[#050505]/78 p-1 text-center align-top backdrop-blur-[1px] transition md:block md:min-h-[80px] md:rounded-lg md:p-2 md:text-left ${
                     calendarDay.isCurrentMonth ? 'cursor-pointer hover:border-[#f5c518]/50' : 'cursor-default'
-                  } ${isHighlighted ? 'border-[#f5c518] bg-[#1a1700]' : 'border-[#263244]'} ${
+                  } ${isHighlighted ? 'border-[#f5c518] bg-[#1a1700]/90' : 'border-[#242424]'} ${
                     isSelected ? 'border-2' : ''
                   }`}
                   disabled={!calendarDay.isCurrentMonth}
@@ -341,7 +350,7 @@ export function AgendaPage() {
                         ? isHighlighted
                           ? 'text-[#f5c518]'
                           : 'text-[#9ca3af]'
-                        : 'text-[#374151]'
+                        : 'text-[#333333]'
                     }`}
                   >
                   {calendarDay.date.getDate()}
@@ -356,13 +365,14 @@ export function AgendaPage() {
             })}
           </div>
         </div>
+        </div>
       </section>
 
-      <section className="mt-4 rounded-2xl border border-[#1f2937] bg-[#111827] p-4">
+      <section className="mt-4 rounded-2xl border border-[#111111] bg-[#050505] p-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
           <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
             <select
-              className="min-w-[180px] rounded-lg border border-[#2a2a4a] bg-[#1a1a2e] px-4 py-2 text-left text-sm text-white"
+              className="min-w-[180px] rounded-lg border border-[#2a2a2a] bg-[#0f0f0f] px-4 py-2 text-left text-sm text-white"
               onChange={(event) => {
                 setSelectedBarberId(event.target.value)
                 setTurnosPage(1)
@@ -375,7 +385,7 @@ export function AgendaPage() {
               ))}
             </select>
             <select
-              className="min-w-[180px] rounded-lg border border-[#2a2a4a] bg-[#1a1a2e] px-4 py-2 text-left text-sm text-white"
+              className="min-w-[180px] rounded-lg border border-[#2a2a2a] bg-[#0f0f0f] px-4 py-2 text-left text-sm text-white"
               onChange={(event) => {
                 setSelectedSucursalId(event.target.value)
                 setTurnosPage(1)
@@ -402,7 +412,7 @@ export function AgendaPage() {
           <label className="flex-1">
             <span className="sr-only">Buscar cliente</span>
             <input
-              className="w-full rounded-lg border border-[#2a2a4a] bg-[#1a1a2e] px-4 py-2 text-sm text-white outline-none placeholder:text-[#a0a0a0] focus:border-[#f5c518]"
+              className="w-full rounded-lg border border-[#2a2a2a] bg-[#0f0f0f] px-4 py-2 text-sm text-white outline-none placeholder:text-[#a0a0a0] focus:border-[#f5c518]"
               onChange={(event) => {
                 setSearchTerm(event.target.value)
                 setTurnosPage(1)
@@ -415,7 +425,7 @@ export function AgendaPage() {
         </div>
       </section>
 
-      <section className="mt-6 rounded-2xl border border-[#1f2937] bg-[#111827] p-4">
+      <section className="mt-6 rounded-2xl border border-[#111111] bg-[#050505] p-4">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <h2 className="text-xl font-bold">{listTitle}</h2>
@@ -429,7 +439,7 @@ export function AgendaPage() {
                   className={`rounded-lg border px-3 py-2 text-xs font-bold transition ${
                     turnosListMode === mode.id
                       ? 'border-[#f5c518] bg-[#1a1700] text-[#f5c518]'
-                      : 'border-[#263244] bg-[#1f2937] text-[#a0a0a0] hover:border-[#475569] hover:text-white'
+                      : 'border-[#242424] bg-[#111111] text-[#a0a0a0] hover:border-[#3f3f3f] hover:text-white'
                   }`}
                   key={mode.id}
                   onClick={() => {
@@ -451,7 +461,7 @@ export function AgendaPage() {
           <div className="mt-4 flex flex-wrap gap-3">
             {paginatedTurnos.map((turno) => (
               <button
-                className="inline-flex w-fit items-center rounded-lg border border-[#263244] bg-[#1f2937] px-4 py-3 text-left font-bold text-white transition hover:border-[#f5c518]/60 hover:bg-[#263244]"
+                className="inline-flex w-fit items-center rounded-lg border border-[#242424] bg-[#111111] px-4 py-3 text-left font-bold text-white transition hover:border-[#f5c518]/60 hover:bg-[#242424]"
                 key={turno.id}
                 onClick={() => setSelectedTurno(turno)}
                 type="button"
@@ -465,7 +475,7 @@ export function AgendaPage() {
               <span>Página {turnosPage} de {totalTurnosPages}</span>
               <div className="flex gap-2">
                 <button
-                  className="rounded-lg bg-[#1f2937] px-3 py-2 text-white disabled:opacity-40"
+                  className="rounded-lg bg-[#111111] px-3 py-2 text-white disabled:opacity-40"
                   disabled={turnosPage === 1}
                   onClick={() => setTurnosPage((page) => Math.max(1, page - 1))}
                   type="button"
@@ -473,7 +483,7 @@ export function AgendaPage() {
                   Anterior
                 </button>
                 <button
-                  className="rounded-lg bg-[#1f2937] px-3 py-2 text-white disabled:opacity-40"
+                  className="rounded-lg bg-[#111111] px-3 py-2 text-white disabled:opacity-40"
                   disabled={turnosPage === totalTurnosPages}
                   onClick={() => setTurnosPage((page) => Math.min(totalTurnosPages, page + 1))}
                   type="button"
@@ -487,8 +497,8 @@ export function AgendaPage() {
 
       {selectedTurno ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4">
-          <section className="w-full max-w-lg rounded-xl border border-[#334155] bg-[#111827] text-white shadow-2xl">
-            <div className="flex items-start justify-between border-b border-[#263244] px-6 py-5">
+          <section className="w-full max-w-lg rounded-xl border border-[#2f2f2f] bg-[#050505] text-white shadow-2xl">
+            <div className="flex items-start justify-between border-b border-[#242424] px-6 py-5">
               <div>
                 <p className="text-sm font-bold text-[#f5c518]">
                   {selectedTurno.hora}{selectedTurno.horaFin ? ` - ${selectedTurno.horaFin}` : ''}
@@ -506,31 +516,31 @@ export function AgendaPage() {
             </div>
 
             <div className="space-y-3 px-6 py-5 text-sm">
-              <div className="rounded-lg bg-[#1f2937] px-4 py-3">
+              <div className="rounded-lg bg-[#111111] px-4 py-3">
                 <span className="block text-[#a0a0a0]">Servicio</span>
                 <strong className="mt-1 block text-white">{getServiceName(selectedTurno)}</strong>
               </div>
-              <div className="rounded-lg bg-[#1f2937] px-4 py-3">
+              <div className="rounded-lg bg-[#111111] px-4 py-3">
                 <span className="block text-[#a0a0a0]">Barbero</span>
                 <strong className="mt-1 block text-white">{getBarberName(selectedTurno)}</strong>
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded-lg bg-[#1f2937] px-4 py-3">
+                <div className="rounded-lg bg-[#111111] px-4 py-3">
                   <span className="block text-[#a0a0a0]">Fecha</span>
                   <strong className="mt-1 block text-white">{selectedTurno.fecha ?? selectedDate}</strong>
                 </div>
-                <div className="rounded-lg bg-[#1f2937] px-4 py-3">
+                <div className="rounded-lg bg-[#111111] px-4 py-3">
                   <span className="block text-[#a0a0a0]">Estado</span>
                   <strong className="mt-1 block text-white">{selectedTurno.estado}</strong>
                 </div>
               </div>
-              <div className="rounded-lg bg-[#1f2937] px-4 py-3">
+              <div className="rounded-lg bg-[#111111] px-4 py-3">
                 <span className="block text-[#a0a0a0]">Teléfono</span>
                 <strong className="mt-1 block text-white">{selectedTurno.clienteTelefono ?? 'Sin teléfono cargado'}</strong>
               </div>
             </div>
 
-            <div className="grid gap-3 border-t border-[#263244] px-6 py-5 sm:grid-cols-3">
+            <div className="grid gap-3 border-t border-[#242424] px-6 py-5 sm:grid-cols-3">
               <a
                 className="rounded-lg border border-[#3f4c2a] bg-[#202713] px-4 py-3 text-center text-sm font-bold text-[#f5c518] transition hover:border-[#f5c518]"
                 href={getWhatsAppUrl(selectedTurno, getReminderMessage(selectedTurno))}
@@ -560,7 +570,7 @@ export function AgendaPage() {
 
       {paymentTurno ? (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4">
-          <section className="w-full max-w-md rounded-xl border border-[#334155] bg-[#111827] p-6 text-white shadow-2xl">
+          <section className="w-full max-w-md rounded-xl border border-[#2f2f2f] bg-[#050505] p-6 text-white shadow-2xl">
             <h2 className="text-2xl font-bold">Método de pago</h2>
             <p className="mt-2 text-sm text-[#a0a0a0]">
               Seleccioná cómo pagó {paymentTurno.clienteNombre} o marcá que no asistió.
@@ -574,7 +584,7 @@ export function AgendaPage() {
                 Efectivo
               </button>
               <button
-                className="rounded-lg border border-[#334155] bg-[#1f2937] px-4 py-3 font-bold text-white transition hover:border-[#f5c518]"
+                className="rounded-lg border border-[#2f2f2f] bg-[#111111] px-4 py-3 font-bold text-white transition hover:border-[#f5c518]"
                 onClick={() => markAsPaid(paymentTurno, 'TRANSFERENCIA')}
                 type="button"
               >
@@ -589,7 +599,7 @@ export function AgendaPage() {
               No asistió
             </button>
             <button
-              className="mt-3 w-full rounded-lg bg-[#475569] px-4 py-3 text-white transition hover:bg-[#64748b]"
+              className="mt-3 w-full rounded-lg bg-[#3f3f3f] px-4 py-3 text-white transition hover:bg-[#6b6b6b]"
               onClick={() => setPaymentTurno(null)}
               type="button"
             >
@@ -601,7 +611,7 @@ export function AgendaPage() {
 
       {cancelingTurno ? (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4">
-          <section className="w-full max-w-md rounded-xl border border-[#334155] bg-[#111827] p-6 text-white shadow-2xl">
+          <section className="w-full max-w-md rounded-xl border border-[#2f2f2f] bg-[#050505] p-6 text-white shadow-2xl">
             <h2 className="text-2xl font-bold">Cancelar turno</h2>
             <p className="mt-2 text-sm text-[#a0a0a0]">
               Podés avisarle al cliente por WhatsApp antes de cancelar el turno.
@@ -624,7 +634,7 @@ export function AgendaPage() {
                 Cancelar sin avisar
               </button>
               <button
-                className="rounded-lg bg-[#475569] px-4 py-3 text-white transition hover:bg-[#64748b]"
+                className="rounded-lg bg-[#3f3f3f] px-4 py-3 text-white transition hover:bg-[#6b6b6b]"
                 onClick={() => setCancelingTurno(null)}
                 type="button"
               >
@@ -637,33 +647,33 @@ export function AgendaPage() {
 
       {isTurnoModalOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4">
-          <form className="max-h-[92vh] w-full max-w-2xl overflow-hidden rounded-xl border border-[#334155] bg-[#111827] text-white shadow-2xl" onSubmit={handleNewTurno}>
-            <div className="border-b border-[#263244] px-6 py-5">
+          <form className="max-h-[92vh] w-full max-w-2xl overflow-hidden rounded-xl border border-[#2f2f2f] bg-[#050505] text-white shadow-2xl" onSubmit={handleNewTurno}>
+            <div className="border-b border-[#242424] px-6 py-5">
               <h2 className="text-2xl font-bold">Nuevo Turno</h2>
               <p className="mt-1 text-sm text-[#a0a0a0]">Elegí barbero, fecha y servicio para ver horarios disponibles.</p>
             </div>
             <div className="max-h-[68vh] space-y-4 overflow-y-auto px-6 py-5">
               <input
-                className="w-full rounded-lg border border-[#475569] bg-[#1f2937] px-4 py-3 text-white"
+                className="w-full rounded-lg border border-[#3f3f3f] bg-[#111111] px-4 py-3 text-white"
                 onChange={(event) => setTurnoForm((current) => ({ ...current, clienteNombre: event.target.value }))}
                 placeholder="Nombre del cliente"
                 required
                 value={turnoForm.clienteNombre}
               />
               <input
-                className="w-full rounded-lg border border-[#475569] bg-[#1f2937] px-4 py-3 text-white"
+                className="w-full rounded-lg border border-[#3f3f3f] bg-[#111111] px-4 py-3 text-white"
                 onChange={(event) => setTurnoForm((current) => ({ ...current, clienteTelefono: event.target.value }))}
                 placeholder="Teléfono"
                 value={turnoForm.clienteTelefono}
               />
               <input
-                className="w-full rounded-lg border border-[#475569] bg-[#1f2937] px-4 py-3 text-white"
+                className="w-full rounded-lg border border-[#3f3f3f] bg-[#111111] px-4 py-3 text-white"
                 onChange={(event) => setTurnoForm((current) => ({ ...current, fecha: event.target.value }))}
                 type="date"
                 value={turnoForm.fecha}
               />
               <select
-                className="w-full rounded-lg border border-[#475569] bg-[#1f2937] px-4 py-3 text-white"
+                className="w-full rounded-lg border border-[#3f3f3f] bg-[#111111] px-4 py-3 text-white"
                 onChange={(event) => setTurnoForm((current) => ({ ...current, barberoId: event.target.value }))}
                 value={turnoForm.barberoId}
               >
@@ -672,7 +682,7 @@ export function AgendaPage() {
                 ))}
               </select>
               <select
-                className="w-full rounded-lg border border-[#475569] bg-[#1f2937] px-4 py-3 text-white"
+                className="w-full rounded-lg border border-[#3f3f3f] bg-[#111111] px-4 py-3 text-white"
                 onChange={(event) => setTurnoForm((current) => ({ ...current, servicioId: event.target.value }))}
                 value={turnoForm.servicioId}
               >
@@ -680,7 +690,7 @@ export function AgendaPage() {
                   <option key={servicio.id} value={servicio.id}>{servicio.nombre}</option>
                 ))}
               </select>
-              <section className="rounded-xl border border-[#263244] bg-[#0f172a] p-4">
+              <section className="rounded-xl border border-[#242424] bg-[#0a0a0a] p-4">
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <h3 className="font-bold text-white">Horarios disponibles</h3>
@@ -698,7 +708,7 @@ export function AgendaPage() {
                 </div>
 
                 {availableSlots.length === 0 ? (
-                  <p className="mt-4 rounded-lg border border-[#334155] bg-[#1f2937] px-4 py-3 text-sm text-[#a0a0a0]">
+                  <p className="mt-4 rounded-lg border border-[#2f2f2f] bg-[#111111] px-4 py-3 text-sm text-[#a0a0a0]">
                     Cambiá la fecha, el barbero o el servicio para buscar otro espacio.
                   </p>
                 ) : (
@@ -711,7 +721,7 @@ export function AgendaPage() {
                           className={`rounded-lg border px-3 py-3 text-sm font-bold transition ${
                             isSelectedSlot
                               ? 'border-[#f5c518] bg-[#1a1700] text-[#f5c518]'
-                              : 'border-[#334155] bg-[#1f2937] text-white hover:border-[#f5c518]/70'
+                              : 'border-[#2f2f2f] bg-[#111111] text-white hover:border-[#f5c518]/70'
                           }`}
                           key={`${slot.start}-${slot.end}`}
                           onClick={() => setTurnoForm((current) => ({ ...current, hora: slot.start }))}
@@ -725,16 +735,16 @@ export function AgendaPage() {
                   </div>
                 )}
               </section>
-              <p className="rounded-lg bg-[#1f2937] px-4 py-3 text-sm text-[#a0a0a0]">
+              <p className="rounded-lg bg-[#111111] px-4 py-3 text-sm text-[#a0a0a0]">
                 {selectedService
                   ? `Duración del servicio: ${selectedService.duracionMinutos} minutos. Los horarios se recalculan según la agenda real del barbero.`
                   : 'Seleccioná un servicio para ver los horarios disponibles.'}
               </p>
               {turnoFormError ? <p className="text-sm font-bold text-red-300">{turnoFormError}</p> : null}
             </div>
-            <div className="grid grid-cols-2 gap-3 border-t border-[#263244] bg-[#0f172a] px-6 py-5">
+            <div className="grid grid-cols-2 gap-3 border-t border-[#242424] bg-[#0a0a0a] px-6 py-5">
               <button
-                className="rounded-lg bg-[#475569] px-4 py-3"
+                className="rounded-lg bg-[#3f3f3f] px-4 py-3"
                 onClick={() => {
                   setTurnoFormError(null)
                   setIsTurnoModalOpen(false)

@@ -25,7 +25,7 @@ export const MOCK_BARBEROS: Barbero[] = [
     isOwner: false,
     esDueno: false,
     porcentajeCasa: 40,
-    colorHex: '#5b9bd5',
+    colorHex: '#6b6b6b',
     sucursalId: 's1',
     fechaIngreso: '2021-03-10',
   },

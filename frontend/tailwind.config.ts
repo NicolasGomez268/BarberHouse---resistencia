@@ -7,8 +7,8 @@ export default {
       colors: {
         background: '#0a0a0a',
         surface: {
-          DEFAULT: '#1a1a2e',
-          deep: '#16213e',
+          DEFAULT: '#0f0f0f',
+          deep: '#151515',
         },
         accent: '#f5c518',
         text: {

@@ -21,7 +21,7 @@ export function AdminLayout() {
 
   return (
     <div className="min-h-screen bg-background pb-28 text-text-primary md:pb-0">
-      <aside className="hidden border-b border-[#1f2937] bg-[#111827] px-4 py-4 md:fixed md:inset-y-0 md:left-0 md:z-30 md:block md:w-60 md:border-b-0 md:border-r md:py-6">
+      <aside className="hidden border-b border-[#111111] bg-[#050505] px-4 py-4 md:fixed md:inset-y-0 md:left-0 md:z-30 md:block md:w-60 md:border-b-0 md:border-r md:py-6">
         <div className="mb-4 md:mb-8">
           <p className="text-xs uppercase tracking-widest text-[#a0a0a0]">Peluquería</p>
           <h1 className="mt-1 text-xl font-bold text-white">Administración</h1>
@@ -33,7 +33,7 @@ export function AdminLayout() {
                 `shrink-0 rounded-lg px-4 py-3 text-sm font-medium transition ${
                   isActive
                     ? 'bg-[#f5c518] text-black'
-                    : 'text-[#a0a0a0] hover:bg-[#1f2937] hover:text-white'
+                    : 'text-[#a0a0a0] hover:bg-[#111111] hover:text-white'
                 }`
               }
               key={link.to}
@@ -43,7 +43,7 @@ export function AdminLayout() {
             </NavLink>
           ))}
           <button
-            className="mt-auto flex shrink-0 items-center gap-2 rounded-lg px-4 py-3 text-left text-sm font-medium text-red-300 transition hover:bg-[#1f2937] hover:text-red-200"
+            className="mt-auto flex shrink-0 items-center gap-2 rounded-lg px-4 py-3 text-left text-sm font-medium text-red-300 transition hover:bg-[#111111] hover:text-red-200"
             onClick={handleLogout}
             type="button"
           >
@@ -55,7 +55,7 @@ export function AdminLayout() {
       <main className="min-h-screen p-4 md:ml-60 md:p-6">
         <Outlet />
       </main>
-      <nav className="fixed inset-x-4 bottom-4 z-40 grid grid-cols-6 rounded-[2rem] border border-[#2a2a4a] bg-[#111827]/95 p-2 shadow-2xl shadow-black/50 backdrop-blur md:hidden">
+      <nav className="fixed inset-x-4 bottom-4 z-40 grid grid-cols-6 rounded-[2rem] border border-[#2a2a2a] bg-[#050505]/95 p-2 shadow-2xl shadow-black/50 backdrop-blur md:hidden">
         {links.map(({ to, label, Icon }) => (
           <NavLink
             className={({ isActive }) =>
