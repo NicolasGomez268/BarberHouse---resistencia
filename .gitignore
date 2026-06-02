@@ -1,4 +1,21 @@
+# Dependencias
 node_modules
+
+# Builds
 dist
+lib
+
+# Variables de entorno (nunca subir secrets)
 .env
 .env.local
+.env.*.local
+
+# Firebase — output de emuladores y logs de debug
+.emulator-data/
+.firebase/
+firebase-debug.log
+firebase-debug.*.log
+firestore-debug.log
+functions-debug.log
+auth-debug.log
+ui-debug.log
