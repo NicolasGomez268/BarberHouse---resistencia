@@ -1,6 +1,6 @@
 export type ID = string
 
-export type Estado = 'PENDIENTE' | 'CONFIRMADO' | 'REALIZADO' | 'CANCELADO' | 'NO_ASISTIO'
+export type Estado = 'PENDIENTE' | 'CONFIRMADO' | 'REALIZADO' | 'CANCELADO' | 'NO_ASISTIO' | 'AUSENTE_FIJO'
 export type MetodoPago = 'efectivo' | 'transferencia' | 'tarjeta'
 export type MetodoPagoMock = 'EFECTIVO' | 'TRANSFERENCIA' | 'TARJETA'
 export type Rol = 'admin' | 'peluquero'
@@ -79,6 +79,8 @@ export type Turno = {
   metodoPago?: MetodoPago | MetodoPagoMock
   esFijo?: boolean
   turnoFijoId?: string
+  esReemplazoFijo?: boolean
+  turnoOriginalId?: string
   notas?: string
   creadoPor?: string
   cliente?: string
@@ -93,11 +95,12 @@ export type TurnoFijo = {
   servicioId: string
   clienteNombre: string
   clienteTelefono?: string
-  diaSemana: number
+  diaSemana?: number
   hora: string
-  frecuenciaSemanas: number
+  fechasAgendadas: string[]
   activo: boolean
   proximaFecha: string
+  pausadoHasta?: string
 }
 
 export type Producto = {

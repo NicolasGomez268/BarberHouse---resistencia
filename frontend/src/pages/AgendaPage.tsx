@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
+import { ModalConfirmarEliminar } from '../features/agenda/components/ModalConfirmarEliminar'
+import { ModalEditarTurnoFijo } from '../features/agenda/components/ModalEditarTurnoFijo'
+import { ModalNuevoTurnoFijo } from '../features/agenda/components/ModalNuevoTurnoFijo'
 import { useTurnos } from '../features/agenda/hooks/useTurnos'
 import { getAvailableSlots } from '../features/agenda/lib/appointments'
 import { MOCK_BARBEROS, MOCK_HORARIOS, MOCK_SERVICIOS } from '../mocks'
-import type { MetodoPagoMock, Turno } from '../types'
-import barberHouseCalendarBg from '../assets/barber-house-calendar-bg.svg'
+import type { MetodoPagoMock, Turno, TurnoFijo } from '../types'
 
 type CalendarDay = {
   date: Date
@@ -20,6 +22,13 @@ type TurnoForm = {
   clienteTelefono: string
   fecha: string
   hora: string
+}
+
+type ReemplazoFijoForm = {
+  clienteNombre: string
+  clienteTelefono: string
+  servicioId: string
+  metodoPago: '' | MetodoPagoMock
 }
 
 type TurnosListMode = 'selected-day' | 'upcoming' | 'today' | 'past' | 'cancelled' | 'no-show'
@@ -66,12 +75,33 @@ function isNoShowTurno(turno: Turno) {
   return turno.estado === 'NO_ASISTIO'
 }
 
+function isAusenteFijoTurno(turno: Turno) {
+  return turno.estado === 'AUSENTE_FIJO'
+}
+
 function isHistoricalTurno(turno: Turno, now: Date) {
   return getTurnoTimestamp(turno) < now.getTime()
 }
 
 export function AgendaPage() {
-  const { turnos, loading, error, crearTurno, marcarRealizado, cancelarTurno, marcarNoAsistio } = useTurnos()
+  const {
+    turnos,
+    turnosFijos,
+    loading,
+    error,
+    crearTurno,
+    crearTurnoFijo,
+    marcarRealizado,
+    cancelarTurno,
+    marcarNoAsistio,
+    marcarAusenteFijo,
+    liberarTurnoFijo,
+    generarProximoTurnoFijo,
+    editarTurnoFijo,
+    eliminarTurnoFijo,
+    pausarTurnoFijo,
+    reanudarTurnoFijo,
+  } = useTurnos()
   const [currentDate, setCurrentDate] = useState<Date>(() => new Date())
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [selectedBarberId, setSelectedBarberId] = useState('')
@@ -80,10 +110,22 @@ export function AgendaPage() {
   const [turnosListMode, setTurnosListMode] = useState<TurnosListMode>('selected-day')
   const [turnosPage, setTurnosPage] = useState(1)
   const [isTurnoModalOpen, setIsTurnoModalOpen] = useState(false)
+  const [isTurnoFijoModalOpen, setIsTurnoFijoModalOpen] = useState(false)
+  const [showModalEditar, setShowModalEditar] = useState(false)
+  const [showConfirmarEliminar, setShowConfirmarEliminar] = useState(false)
+  const [showTurnosFijos, setShowTurnosFijos] = useState(false)
+  const [turnoFijoSeleccionado, setTurnoFijoSeleccionado] = useState<TurnoFijo | null>(null)
   const [selectedTurno, setSelectedTurno] = useState<Turno | null>(null)
   const [paymentTurno, setPaymentTurno] = useState<Turno | null>(null)
   const [cancelingTurno, setCancelingTurno] = useState<Turno | null>(null)
+  const [assigningTurno, setAssigningTurno] = useState<Turno | null>(null)
   const [turnoFormError, setTurnoFormError] = useState<string | null>(null)
+  const [reemplazoFijoForm, setReemplazoFijoForm] = useState<ReemplazoFijoForm>({
+    clienteNombre: '',
+    clienteTelefono: '',
+    servicioId: MOCK_SERVICIOS[0]?.id ?? '',
+    metodoPago: '',
+  })
   const [turnoForm, setTurnoForm] = useState<TurnoForm>({
     barberoId: MOCK_BARBEROS[0]?.id ?? '',
     servicioId: MOCK_SERVICIOS[0]?.id ?? '',
@@ -152,7 +194,7 @@ export function AgendaPage() {
       if (turnosListMode === 'selected-day') return selectedDate ? turno.fecha === selectedDate : turno.fecha === todayKey
       if (turnosListMode === 'upcoming') return !isCancelledTurno(turno) && !isNoShowTurno(turno) && !isHistoricalTurno(turno, today)
       if (turnosListMode === 'today') return turno.fecha === todayKey
-      if (turnosListMode === 'past') return !isCancelledTurno(turno) && !isNoShowTurno(turno) && isHistoricalTurno(turno, today)
+      if (turnosListMode === 'past') return !isCancelledTurno(turno) && !isNoShowTurno(turno) && !isAusenteFijoTurno(turno) && isHistoricalTurno(turno, today)
       if (turnosListMode === 'cancelled') return isCancelledTurno(turno)
       return isNoShowTurno(turno)
     })
@@ -177,11 +219,12 @@ export function AgendaPage() {
       date: turnoForm.fecha,
       serviceDuration: selectedService.duracionMinutos,
       turnos,
+      turnosFijos,
       barberos: MOCK_BARBEROS,
       servicios: MOCK_SERVICIOS,
       horarios: MOCK_HORARIOS,
     })
-  }, [selectedService, turnoForm.barberoId, turnoForm.fecha, turnos])
+  }, [selectedService, turnoForm.barberoId, turnoForm.fecha, turnos, turnosFijos])
 
   useEffect(() => {
     if (!isTurnoModalOpen) return
@@ -194,6 +237,22 @@ export function AgendaPage() {
       hora: availableSlots[0]?.start ?? '',
     }))
   }, [availableSlots, isTurnoModalOpen, turnoForm.hora])
+
+  useEffect(() => {
+    const hoy = new Date().toISOString().slice(0, 10)
+
+    turnosFijos
+      .filter((turnoFijo) => {
+        if (!turnoFijo.activo) return false
+        if (turnoFijo.pausadoHasta && turnoFijo.pausadoHasta >= hoy) return false
+        return turnoFijo.fechasAgendadas.some(
+          (fecha) =>
+            fecha >= hoy &&
+            !turnos.some((turno) => turno.turnoFijoId === turnoFijo.id && turno.fecha === fecha && turno.estado !== 'CANCELADO'),
+        )
+      })
+      .forEach((turnoFijo) => generarProximoTurnoFijo(turnoFijo.id))
+  }, [])
 
   function getTurnosForDate(dateKey: string) {
     return filteredTurnos.filter((turno) => turno.fecha === dateKey)
@@ -230,6 +289,27 @@ export function AgendaPage() {
     return MOCK_BARBEROS.find((barbero) => barbero.id === turno.barberoId)?.nombre ?? turno.barberoId ?? 'Sin barbero'
   }
 
+  function getBarberNameById(barberoId: string) {
+    return MOCK_BARBEROS.find((barbero) => barbero.id === barberoId)?.nombre ?? barberoId
+  }
+
+  function getServiceNameById(servicioId: string) {
+    return MOCK_SERVICIOS.find((servicio) => servicio.id === servicioId)?.nombre ?? servicioId
+  }
+
+  function getCompactDateLabel(dateKey: string) {
+    return new Intl.DateTimeFormat('es-AR', {
+      day: 'numeric',
+      month: 'short',
+    }).format(new Date(`${dateKey}T00:00:00`))
+  }
+
+  function getProximaFecha(fechasAgendadas: string[]) {
+    const hoy = new Date().toISOString().slice(0, 10)
+    const fechasOrdenadas = [...fechasAgendadas].sort()
+    return fechasOrdenadas.filter((fecha) => fecha >= hoy)[0] ?? fechasOrdenadas[0] ?? hoy
+  }
+
   function getWhatsAppUrl(turno: Turno, message: string) {
     const phone = turno.clienteTelefono?.replace(/\D/g, '') ?? ''
     const encodedMessage = encodeURIComponent(message)
@@ -251,7 +331,11 @@ export function AgendaPage() {
   }
 
   function markAsNoShow(turno: Turno) {
-    marcarNoAsistio(turno.id)
+    if (turno.esFijo && turno.turnoFijoId) {
+      marcarAusenteFijo(turno.id)
+    } else {
+      marcarNoAsistio(turno.id)
+    }
     setPaymentTurno(null)
     setSelectedTurno(null)
   }
@@ -260,6 +344,83 @@ export function AgendaPage() {
     cancelarTurno(turno.id)
     setCancelingTurno(null)
     setSelectedTurno(null)
+  }
+
+  function getStatusBadge(turno: Turno) {
+    if (turno.estado === 'AUSENTE_FIJO') {
+      return {
+        label: 'Turno libre',
+        className: 'border border-purple-500/30 bg-purple-500/20 text-purple-400',
+      }
+    }
+
+    return {
+      label: String(turno.estado),
+      className: 'border border-[#2f2f2f] bg-[#111111] text-white',
+    }
+  }
+
+  function openAssignReplacement(turno: Turno) {
+    setReemplazoFijoForm({
+      clienteNombre: '',
+      clienteTelefono: '',
+      servicioId: turno.servicioId,
+      metodoPago: '',
+    })
+    setAssigningTurno(turno)
+  }
+
+  function handleAssignReplacement(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!assigningTurno) return
+
+    liberarTurnoFijo(assigningTurno.id, {
+      clienteNombre: reemplazoFijoForm.clienteNombre,
+      clienteTelefono: reemplazoFijoForm.clienteTelefono || undefined,
+      servicioId: reemplazoFijoForm.servicioId,
+      metodoPago: reemplazoFijoForm.metodoPago || undefined,
+    })
+    setAssigningTurno(null)
+    setSelectedTurno(null)
+  }
+
+  function handleGuardarTurnoFijo(datos: Omit<TurnoFijo, 'id' | 'proximaFecha'>) {
+    const nuevoFijo: TurnoFijo = {
+      ...datos,
+      id: `tf-${Date.now()}`,
+      proximaFecha: getProximaFecha(datos.fechasAgendadas),
+    }
+
+    crearTurnoFijo(nuevoFijo)
+    generarProximoTurnoFijo(nuevoFijo.id)
+    setIsTurnoFijoModalOpen(false)
+    setShowTurnosFijos(true)
+  }
+
+  function handleEditarTurnoFijo(turnoFijo: TurnoFijo) {
+    setTurnoFijoSeleccionado(turnoFijo)
+    setShowModalEditar(true)
+  }
+
+  function handleEliminarTurnoFijo(turnoFijo: TurnoFijo) {
+    setTurnoFijoSeleccionado(turnoFijo)
+    setShowConfirmarEliminar(true)
+  }
+
+  function handleGuardarEdicion(id: string, datos: Partial<TurnoFijo>) {
+    editarTurnoFijo(id, {
+      ...datos,
+      proximaFecha: datos.fechasAgendadas ? getProximaFecha(datos.fechasAgendadas) : datos.proximaFecha,
+    })
+    setShowModalEditar(false)
+    setTurnoFijoSeleccionado(null)
+  }
+
+  function handleConfirmarEliminar() {
+    if (!turnoFijoSeleccionado) return
+
+    eliminarTurnoFijo(turnoFijoSeleccionado.id)
+    setTurnoFijoSeleccionado(null)
   }
 
   return (
@@ -274,11 +435,6 @@ export function AgendaPage() {
       <section
         className="relative mt-6 overflow-hidden rounded-2xl border border-[#111111] bg-[#050505] p-3 md:p-4"
       >
-        <div
-          className="absolute inset-0 bg-center bg-no-repeat opacity-[0.28]"
-          style={{ backgroundImage: `url(${barberHouseCalendarBg})`, backgroundSize: '62%' }}
-        />
-        <div className="absolute inset-0 bg-black/88" />
         <div className="relative z-10">
         <div className="mx-auto mb-5 grid max-w-xl grid-cols-[auto_1fr_auto] items-center gap-3 rounded-[1.5rem] border border-[#2a2a2a] bg-[#0f0f0f] p-2 md:max-w-none md:border-0 md:bg-transparent md:p-0">
           <button
@@ -407,6 +563,13 @@ export function AgendaPage() {
             >
               + Nuevo Turno
             </button>
+            <button
+              className="rounded-lg border border-[#f5c518] bg-transparent px-4 py-2 font-medium text-[#f5c518] transition hover:bg-[#f5c518]/10"
+              onClick={() => setIsTurnoFijoModalOpen(true)}
+              type="button"
+            >
+              + Turno Fijo
+            </button>
           </div>
 
           <label className="flex-1">
@@ -424,6 +587,107 @@ export function AgendaPage() {
           </label>
         </div>
       </section>
+
+      {turnosFijos.length > 0 ? (
+        <section className="mt-4 rounded-2xl border border-[#111111] bg-[#050505] p-4">
+          <button
+            className="flex w-full items-center justify-between text-left"
+            onClick={() => setShowTurnosFijos((current) => !current)}
+            type="button"
+          >
+            <span className="font-bold text-white">Turnos Fijos Activos</span>
+            <span className="text-sm text-[#f5c518]">{showTurnosFijos ? 'Ocultar' : 'Ver'}</span>
+          </button>
+
+          {showTurnosFijos ? (
+            <div className="mt-4 overflow-x-auto">
+              <table className="w-full min-w-[760px] text-left text-sm">
+                <thead className="text-[#a0a0a0]">
+                  <tr className="border-b border-[#242424]">
+                    <th className="py-3">Cliente</th>
+                    <th className="py-3">Barbero</th>
+                    <th className="py-3">Servicio</th>
+                    <th className="py-3">Hora</th>
+                    <th className="py-3">Fechas agendadas</th>
+                    <th className="py-3">Próxima fecha</th>
+                    <th className="py-3">Estado</th>
+                    <th className="py-3">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {turnosFijos.map((turnoFijo) => {
+                    const isPaused = Boolean(turnoFijo.pausadoHasta && turnoFijo.pausadoHasta >= todayKey)
+
+                    return (
+                      <tr className="border-b border-[#111111] text-white" key={turnoFijo.id}>
+                        <td className="py-3 font-bold">{turnoFijo.clienteNombre}</td>
+                        <td className="py-3 text-[#a0a0a0]">{getBarberNameById(turnoFijo.barberoId)}</td>
+                        <td className="py-3 text-[#a0a0a0]">{getServiceNameById(turnoFijo.servicioId)}</td>
+                        <td className="py-3 text-[#a0a0a0]">{turnoFijo.hora}</td>
+                        <td className="py-3">
+                          <div className="flex flex-wrap gap-2">
+                            {turnoFijo.fechasAgendadas.slice(0, 2).map((fecha) => (
+                              <span className="rounded-full border border-[#2f2f2f] bg-[#111111] px-2 py-1 text-xs font-bold text-[#f5c518]" key={fecha}>
+                                {getCompactDateLabel(fecha)}
+                              </span>
+                            ))}
+                            {turnoFijo.fechasAgendadas.length > 2 ? (
+                              <span className="rounded-full bg-[#111111] px-2 py-1 text-xs font-bold text-[#a0a0a0]">
+                                +{turnoFijo.fechasAgendadas.length - 2} mas
+                              </span>
+                            ) : null}
+                          </div>
+                        </td>
+                        <td className="py-3 text-[#a0a0a0]">{turnoFijo.proximaFecha}</td>
+                        <td className="py-3">
+                          <span className={`rounded-full px-3 py-1 text-xs font-bold ${isPaused ? 'bg-[#2a1618] text-[#fca5a5]' : 'bg-[#123524] text-[#86efac]'}`}>
+                            {isPaused ? 'Pausado' : 'Activo'}
+                          </span>
+                        </td>
+                        <td className="py-3">
+                          <div className="flex flex-wrap gap-2">
+                          {isPaused ? (
+                            <button
+                              className="rounded-lg border border-[#2f2f2f] bg-[#111111] px-3 py-2 text-xs font-bold text-white"
+                              onClick={() => reanudarTurnoFijo(turnoFijo.id)}
+                              type="button"
+                            >
+                              Reanudar
+                            </button>
+                          ) : (
+                            <button
+                              className="rounded-lg border border-[#2f2f2f] bg-[#111111] px-3 py-2 text-xs font-bold text-white"
+                              onClick={() => pausarTurnoFijo(turnoFijo.id, turnoFijo.proximaFecha)}
+                              type="button"
+                            >
+                              Pausar
+                            </button>
+                          )}
+                            <button
+                              className="rounded-lg border border-[#f5c518] bg-transparent px-3 py-2 text-xs font-bold text-[#f5c518] transition hover:bg-[#f5c518]/10"
+                              onClick={() => handleEditarTurnoFijo(turnoFijo)}
+                              type="button"
+                            >
+                              Editar
+                            </button>
+                            <button
+                              className="rounded-lg border border-red-500 bg-transparent px-3 py-2 text-xs font-bold text-red-400 transition hover:bg-red-500/10"
+                              onClick={() => handleEliminarTurnoFijo(turnoFijo)}
+                              type="button"
+                            >
+                              Eliminar
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
+        </section>
+      ) : null}
 
       <section className="mt-6 rounded-2xl border border-[#111111] bg-[#050505] p-4">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -467,6 +731,11 @@ export function AgendaPage() {
                 type="button"
               >
                 <span>{turno.hora} · {turno.clienteNombre}</span>
+                {turno.estado === 'AUSENTE_FIJO' ? (
+                  <span className="ml-3 rounded-full border border-purple-500/30 bg-purple-500/20 px-2 py-0.5 text-xs font-bold text-purple-400">
+                    TURNO LIBRE
+                  </span>
+                ) : null}
               </button>
             ))}
           </div>
@@ -531,7 +800,14 @@ export function AgendaPage() {
                 </div>
                 <div className="rounded-lg bg-[#111111] px-4 py-3">
                   <span className="block text-[#a0a0a0]">Estado</span>
-                  <strong className="mt-1 block text-white">{selectedTurno.estado}</strong>
+                  <span className={`mt-2 inline-flex rounded-full px-3 py-1 text-xs font-bold ${getStatusBadge(selectedTurno).className}`}>
+                    {getStatusBadge(selectedTurno).label}
+                  </span>
+                  {selectedTurno.estado === 'AUSENTE_FIJO' ? (
+                    <p className="mt-2 text-xs text-[#a0a0a0]">
+                      El cliente fijo no asistió — este horario está disponible
+                    </p>
+                  ) : null}
                 </div>
               </div>
               <div className="rounded-lg bg-[#111111] px-4 py-3">
@@ -540,6 +816,17 @@ export function AgendaPage() {
               </div>
             </div>
 
+            {selectedTurno.estado === 'AUSENTE_FIJO' ? (
+              <div className="border-t border-[#242424] px-6 py-5">
+                <button
+                  className="w-full rounded-lg border border-purple-500/30 bg-purple-500/20 px-4 py-3 text-sm font-bold text-purple-400 transition hover:border-purple-400"
+                  onClick={() => openAssignReplacement(selectedTurno)}
+                  type="button"
+                >
+                  Asignar cliente
+                </button>
+              </div>
+            ) : (
             <div className="grid gap-3 border-t border-[#242424] px-6 py-5 sm:grid-cols-3">
               <a
                 className="rounded-lg border border-[#3f4c2a] bg-[#202713] px-4 py-3 text-center text-sm font-bold text-[#f5c518] transition hover:border-[#f5c518]"
@@ -564,7 +851,72 @@ export function AgendaPage() {
                 Cancelar
               </button>
             </div>
+            )}
           </section>
+        </div>
+      ) : null}
+
+      {assigningTurno ? (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4">
+          <form
+            className="w-full max-w-md rounded-xl border border-[#2f2f2f] bg-[#050505] p-6 text-white shadow-2xl"
+            onSubmit={handleAssignReplacement}
+          >
+            <h2 className="text-2xl font-bold">Asignar cliente</h2>
+            <p className="mt-2 text-sm text-[#a0a0a0]">
+              Este turno fijo quedó libre. Cargá los datos del cliente reemplazante.
+            </p>
+            <div className="mt-5 space-y-4">
+              <input
+                className="w-full rounded-lg border border-[#3f3f3f] bg-[#111111] px-4 py-3 text-white"
+                onChange={(event) => setReemplazoFijoForm((current) => ({ ...current, clienteNombre: event.target.value }))}
+                placeholder="Nombre del nuevo cliente"
+                required
+                value={reemplazoFijoForm.clienteNombre}
+              />
+              <input
+                className="w-full rounded-lg border border-[#3f3f3f] bg-[#111111] px-4 py-3 text-white"
+                onChange={(event) => setReemplazoFijoForm((current) => ({ ...current, clienteTelefono: event.target.value }))}
+                placeholder="Teléfono (opcional)"
+                value={reemplazoFijoForm.clienteTelefono}
+              />
+              <select
+                className="w-full rounded-lg border border-[#3f3f3f] bg-[#111111] px-4 py-3 text-white"
+                onChange={(event) => setReemplazoFijoForm((current) => ({ ...current, servicioId: event.target.value }))}
+                value={reemplazoFijoForm.servicioId}
+              >
+                {MOCK_SERVICIOS.map((servicio) => (
+                  <option key={servicio.id} value={servicio.id}>
+                    {servicio.nombre}
+                  </option>
+                ))}
+              </select>
+              <select
+                className="w-full rounded-lg border border-[#3f3f3f] bg-[#111111] px-4 py-3 text-white"
+                onChange={(event) =>
+                  setReemplazoFijoForm((current) => ({ ...current, metodoPago: event.target.value as '' | MetodoPagoMock }))
+                }
+                value={reemplazoFijoForm.metodoPago}
+              >
+                <option value="">Método de pago (opcional)</option>
+                <option value="EFECTIVO">Efectivo</option>
+                <option value="TRANSFERENCIA">Transferencia</option>
+                <option value="TARJETA">Tarjeta</option>
+              </select>
+            </div>
+            <div className="mt-6 grid grid-cols-2 gap-3">
+              <button
+                className="rounded-lg bg-[#3f3f3f] px-4 py-3"
+                onClick={() => setAssigningTurno(null)}
+                type="button"
+              >
+                Cancelar
+              </button>
+              <button className="rounded-lg bg-[#f5c518] px-4 py-3 font-bold text-black" type="submit">
+                Confirmar asignación
+              </button>
+            </div>
+          </form>
         </div>
       ) : null}
 
@@ -764,6 +1116,43 @@ export function AgendaPage() {
           </form>
         </div>
       ) : null}
+
+      <ModalNuevoTurnoFijo
+        barberos={MOCK_BARBEROS}
+        isOpen={isTurnoFijoModalOpen}
+        onClose={() => setIsTurnoFijoModalOpen(false)}
+        onGuardar={handleGuardarTurnoFijo}
+        servicios={MOCK_SERVICIOS}
+      />
+
+      {turnoFijoSeleccionado ? (
+        <ModalEditarTurnoFijo
+          barberos={MOCK_BARBEROS}
+          isOpen={showModalEditar}
+          onClose={() => {
+            setShowModalEditar(false)
+            setTurnoFijoSeleccionado(null)
+          }}
+          onGuardar={handleGuardarEdicion}
+          servicios={MOCK_SERVICIOS}
+          turnoFijo={turnoFijoSeleccionado}
+        />
+      ) : null}
+
+      <ModalConfirmarEliminar
+        descripcion={
+          turnoFijoSeleccionado
+            ? `Eliminas la recurrencia de ${turnoFijoSeleccionado.clienteNombre}?\nLos turnos ya generados no se cancelan automaticamente.`
+            : ''
+        }
+        isOpen={showConfirmarEliminar}
+        onClose={() => {
+          setShowConfirmarEliminar(false)
+          setTurnoFijoSeleccionado(null)
+        }}
+        onConfirmar={handleConfirmarEliminar}
+        titulo="Eliminar turno fijo"
+      />
     </div>
   )
 }
