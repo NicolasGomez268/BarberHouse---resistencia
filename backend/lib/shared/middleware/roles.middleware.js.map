@@ -1,1 +1,0 @@
-{"version":3,"file":"roles.middleware.js","sourceRoot":"","sources":["../../../src/shared/middleware/roles.middleware.ts"],"names":[],"mappings":";;AAGA,0CAIC;AAJD,SAAgB,eAAe,CAAC,MAAkB;IAChD,OAAO,CAAC,QAAiB,EAAE,SAAmB,EAAE,IAAkB,EAAE,EAAE;QACpE,IAAI,EAAE,CAAA;IACR,CAAC,CAAA;AACH,CAAC"}
