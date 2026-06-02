@@ -1,27 +1,30 @@
 {
   "name": "backend",
   "version": "1.0.0",
-  "main": "dist/app.js",
+  "main": "lib/index.js",
+  "engines": {
+    "node": "22"
+  },
   "scripts": {
-    "dev": "nodemon --watch src --ext ts --exec ts-node src/app.ts",
     "build": "tsc",
-    "start": "node dist/app.js"
+    "watch": "tsc --watch",
+    "serve": "firebase emulators:start --only auth,firestore,functions"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "firebase-admin": "^13.10.0",
+    "firebase-functions": "^7.2.5",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/node": "^25.9.1",
-    "cors": "^2.8.6",
-    "dotenv": "^17.4.2",
-    "express": "^5.2.1",
-    "firebase-admin": "^13.10.0",
-    "nodemon": "^3.1.14",
-    "ts-node": "^10.9.2",
-    "typescript": "^6.0.3",
-    "zod": "^4.4.3"
+    "typescript": "^6.0.3"
   }
 }

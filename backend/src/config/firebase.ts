@@ -1,15 +1,16 @@
 import admin from 'firebase-admin'
-import 'dotenv/config'
 
-export function getFirebaseApp() {
-  if (admin.apps.length > 0) {
-    return admin.app()
-  }
+function initApp(): admin.app.App {
+  if (admin.apps.length > 0) return admin.app()
 
-  return admin.initializeApp({
-    credential: admin.credential.applicationDefault(),
-    projectId: process.env.FIREBASE_PROJECT_ID,
-  })
+  // En emulador: el Functions runner inyecta GCLOUD_PROJECT, FIREBASE_CONFIG
+  // y las variables de emulador (FIRESTORE_EMULATOR_HOST, etc.) automaticamente.
+  // En produccion: Cloud Functions provee el service account del entorno.
+  // En ambos casos admin.initializeApp() sin args resuelve todo.
+  return admin.initializeApp()
 }
 
-export const firestore = getFirebaseApp().firestore()
+const firebaseApp = initApp()
+
+export const firestore = firebaseApp.firestore()
+export const adminAuth = admin.auth(firebaseApp)

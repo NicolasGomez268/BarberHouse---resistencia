@@ -2,3 +2,12 @@ node_modules
 dist
 .env
 .env.local
+
+# Firebase emulator data exportado
+.emulator-data/
+
+# Firebase debug logs
+firebase-debug.log
+firestore-debug.log
+auth-debug.log
+ui-debug.log

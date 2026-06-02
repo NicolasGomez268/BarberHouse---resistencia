@@ -1,0 +1,1 @@
+{"version":3,"file":"caja.service.js","sourceRoot":"","sources":["../../../src/modules/caja/caja.service.ts"],"names":[],"mappings":";;;AAAA,uDAAkD;AAGlD,MAAa,WAAW;IACtB,IAAI;QACF,OAAO,gCAAc,CAAC,OAAO,EAAE,CAAA;IACjC,CAAC;IAED,MAAM,CAAC,KAA0B;QAC/B,OAAO,gCAAc,CAAC,MAAM,CAAC,KAAK,CAAC,CAAA;IACrC,CAAC;CACF;AARD,kCAQC;AAEY,QAAA,WAAW,GAAG,IAAI,WAAW,EAAE,CAAA"}
