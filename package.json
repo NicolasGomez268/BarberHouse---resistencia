@@ -1,0 +1,16 @@
+{
+  "name": "barberhouse",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev":"npm run build:backend && concurrently --kill-others-on-fail --names \"TSC,EMU,WEB\" --prefix-colors \"blue,cyan,magenta\" \"npm run watch --prefix backend\" \"npm run emulators\" \"npm run dev:frontend\"",
+    "emulators": "firebase emulators:start --only auth,firestore,functions",
+    "emulators:export": "firebase emulators:export .emulator-data --only auth,firestore",
+    "dev:frontend": "cd frontend && npm run dev",
+    "build:backend": "npm run build --prefix backend",
+    "build:frontend": "npm run build --prefix frontend"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

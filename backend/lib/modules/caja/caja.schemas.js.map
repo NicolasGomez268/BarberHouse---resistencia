@@ -1,0 +1,1 @@
+{"version":3,"file":"caja.schemas.js","sourceRoot":"","sources":["../../../src/modules/caja/caja.schemas.ts"],"names":[],"mappings":";;;AAAA,6BAAuB;AAEV,QAAA,oBAAoB,GAAG,OAAC,CAAC,MAAM,CAAC;IAC3C,QAAQ,EAAE,OAAC,CAAC,MAAM,EAAE,CAAC,GAAG,CAAC,CAAC,CAAC;IAC3B,KAAK,EAAE,OAAC,CAAC,MAAM,EAAE;IACjB,IAAI,EAAE,OAAC,CAAC,IAAI,CAAC,CAAC,SAAS,EAAE,QAAQ,CAAC,CAAC;CACpC,CAAC,CAAA"}
