@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from 'react'
 import type { CajaMovimiento, MetodoPago, SucursalId } from '../../../types'
 import { useCaja } from '../hooks/useCaja'
 
@@ -7,6 +8,7 @@ type CajaDiariaProps = {
 }
 
 const methods: MetodoPago[] = ['efectivo', 'transferencia', 'tarjeta']
+const ITEMS_POR_PAGINA = 10
 
 function money(value: number) {
   return value.toLocaleString('es-AR', { style: 'currency', currency: 'ARS' })
@@ -19,42 +21,106 @@ function methodLabel(method: MetodoPago) {
 export function CajaDiaria({ fecha, sucursalId }: CajaDiariaProps) {
   const { calcularCajaDiaria } = useCaja()
   const data = calcularCajaDiaria(fecha, sucursalId)
+  const [busqueda, setBusqueda] = useState('')
+  const [pagina, setPagina] = useState(1)
+
+  const movimientosFiltrados = useMemo(() => {
+    const texto = busqueda.trim().toLowerCase()
+
+    if (!texto) {
+      return data.movimientos
+    }
+
+    return data.movimientos.filter((movement) => {
+      if (movement.tipo === 'servicio') {
+        return (
+          movement.descripcion.toLowerCase().includes(texto) ||
+          movement.detalle.toLowerCase().includes(texto)
+        )
+      }
+
+      return movement.descripcion.toLowerCase().includes(texto)
+    })
+  }, [busqueda, data.movimientos])
+
+  const totalPaginas = Math.max(1, Math.ceil(movimientosFiltrados.length / ITEMS_POR_PAGINA))
+  const paginaSegura = Math.min(pagina, totalPaginas)
+  const inicio = (paginaSegura - 1) * ITEMS_POR_PAGINA
+  const movimientosPaginados = movimientosFiltrados.slice(inicio, inicio + ITEMS_POR_PAGINA)
+  const desdeMovimiento = movimientosFiltrados.length === 0 ? 0 : inicio + 1
+  const hastaMovimiento = Math.min(inicio + ITEMS_POR_PAGINA, movimientosFiltrados.length)
+
+  useEffect(() => {
+    setPagina(1)
+  }, [busqueda])
+
+  useEffect(() => {
+    setPagina((current) => Math.min(current, totalPaginas))
+  }, [totalPaginas])
 
   return (
     <div className="space-y-5">
-      <div className="grid gap-4 md:grid-cols-3">
-        <StatCard label="Turnos Realizados" value={String(data.turnosRealizados)} />
-        <StatCard label="Ventas Productos" value={money(data.ventasProductos)} />
-        <StatCard highlighted label="Total del Día" value={money(data.totalDia)} />
-      </div>
-
       <div className="grid gap-4 lg:grid-cols-2">
-        <PaymentTable title="Servicios" totals={data.serviciosPorMetodo} />
-        <PaymentTable title="Productos" totals={data.productosPorMetodo} />
+        <PaymentTable title="Servicios por metodo de pago" totals={data.serviciosPorMetodo} />
+        <PaymentTable title="Productos por metodo de pago" totals={data.productosPorMetodo} />
       </div>
 
       <section className="rounded-lg bg-surface p-4">
-        <h3 className="font-bold">Movimientos del día</h3>
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <h3 className="font-bold">Movimientos del dia</h3>
+          <input
+            className="w-full rounded-lg border border-white/10 bg-background px-4 py-3 text-sm text-text-primary outline-none transition placeholder:text-text-secondary focus:border-accent md:max-w-sm"
+            onChange={(event) => setBusqueda(event.target.value)}
+            placeholder="Buscar por cliente o barbero..."
+            type="search"
+            value={busqueda}
+          />
+        </div>
+
         {data.movimientos.length === 0 ? (
           <p className="mt-4 text-text-secondary">No hay movimientos registrados para esta fecha.</p>
+        ) : movimientosFiltrados.length === 0 ? (
+          <p className="mt-6 text-center text-text-secondary">No se encontraron movimientos</p>
         ) : (
-          <div className="mt-4 space-y-3">
-            {data.movimientos.map((movement) => (
-              <MovementRow key={movement.id} movement={movement} />
-            ))}
-          </div>
+          <>
+            <div className="mt-4 space-y-3">
+              {movimientosPaginados.map((movement) => (
+                <MovementRow key={movement.id} movement={movement} />
+              ))}
+            </div>
+
+            {movimientosFiltrados.length > ITEMS_POR_PAGINA ? (
+              <div className="mt-4 flex flex-col gap-3 text-sm text-text-secondary sm:flex-row sm:items-center sm:justify-between">
+                <span>
+                  Mostrando {desdeMovimiento}-{hastaMovimiento} de {movimientosFiltrados.length} movimientos
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    className="rounded-lg bg-surface-deep px-3 py-2 font-bold text-text-primary disabled:cursor-not-allowed disabled:opacity-40"
+                    disabled={paginaSegura === 1}
+                    onClick={() => setPagina((current) => Math.max(1, current - 1))}
+                    type="button"
+                  >
+                    Anterior
+                  </button>
+                  <span className="rounded-lg bg-background px-3 py-2">
+                    Pagina {paginaSegura} de {totalPaginas}
+                  </span>
+                  <button
+                    className="rounded-lg bg-surface-deep px-3 py-2 font-bold text-text-primary disabled:cursor-not-allowed disabled:opacity-40"
+                    disabled={paginaSegura === totalPaginas}
+                    onClick={() => setPagina((current) => Math.min(totalPaginas, current + 1))}
+                    type="button"
+                  >
+                    Siguiente
+                  </button>
+                </div>
+              </div>
+            ) : null}
+          </>
         )}
       </section>
     </div>
-  )
-}
-
-function StatCard({ highlighted = false, label, value }: { highlighted?: boolean; label: string; value: string }) {
-  return (
-    <article className={`rounded-lg p-5 ${highlighted ? 'bg-accent text-background' : 'bg-surface'}`}>
-      <p className={highlighted ? 'font-bold text-background/80' : 'font-bold text-text-secondary'}>{label}</p>
-      <p className="mt-3 text-2xl font-bold">{value}</p>
-    </article>
   )
 }
 
@@ -64,9 +130,9 @@ function PaymentTable({ title, totals }: { title: string; totals: Record<MetodoP
       <h3 className="font-bold">{title}</h3>
       <div className="mt-3 divide-y divide-white/10">
         {methods.map((method) => (
-          <div className="flex justify-between py-3" key={method}>
-            <span className="text-text-secondary">{methodLabel(method)}</span>
-            <strong>{money(totals[method])}</strong>
+          <div className="flex justify-between gap-4 py-3" key={method}>
+            <span className="truncate text-text-secondary">{methodLabel(method)}</span>
+            <strong className="shrink-0">{money(totals[method])}</strong>
           </div>
         ))}
       </div>
@@ -76,14 +142,14 @@ function PaymentTable({ title, totals }: { title: string; totals: Record<MetodoP
 
 function MovementRow({ movement }: { movement: CajaMovimiento }) {
   return (
-    <div className="grid gap-2 rounded-lg bg-surface-deep p-3 text-sm md:grid-cols-[70px_1fr_auto_auto] md:items-center">
+    <div className="grid gap-2 rounded-lg bg-surface-deep p-3 text-sm md:grid-cols-[70px_minmax(0,1fr)_120px_120px] md:items-center">
       <span className="font-bold text-accent">{movement.hora}</span>
-      <div>
-        <p className="font-bold">{movement.descripcion}</p>
-        <p className="text-text-secondary">{movement.detalle}</p>
+      <div className="min-w-0">
+        <p className="truncate font-bold">{movement.descripcion}</p>
+        <p className="truncate text-text-secondary">{movement.detalle}</p>
       </div>
-      <span className="text-text-secondary">{methodLabel(movement.metodoPago)}</span>
-      <strong>{money(movement.monto)}</strong>
+      <span className="truncate text-text-secondary">{methodLabel(movement.metodoPago)}</span>
+      <strong className="text-right">{money(movement.monto)}</strong>
     </div>
   )
 }

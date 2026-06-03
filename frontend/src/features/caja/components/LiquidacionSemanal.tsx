@@ -20,33 +20,54 @@ export function LiquidacionSemanal({ desde, hasta, sucursalId }: LiquidacionSema
   }
 
   return (
-    <section className="overflow-x-auto rounded-lg bg-surface">
-      <table className="w-full min-w-[720px] text-left">
+    <section className="min-w-0 rounded-lg bg-surface">
+      <table className="w-full table-fixed text-left text-sm">
+        <colgroup>
+          <col />
+          <col style={{ width: '70px' }} />
+          <col style={{ width: '120px' }} />
+          <col style={{ width: '130px' }} />
+          <col style={{ width: '120px' }} />
+        </colgroup>
         <thead className="border-b border-white/10 text-text-secondary">
           <tr>
             <th className="p-4">Barbero</th>
-            <th className="p-4">Turnos</th>
-            <th className="p-4">Monto bruto</th>
-            <th className="p-4">Comisión barbero</th>
-            <th className="p-4">Parte casa</th>
+            <th className="p-4 text-right">Turnos</th>
+            <th className="p-4 text-right">Monto bruto</th>
+            <th className="p-4 text-right">Comision</th>
+            <th className="p-4 text-right">Casa</th>
           </tr>
         </thead>
         <tbody>
           {data.filas.map((row) => (
             <tr className="border-b border-white/10" key={row.barberoId}>
-              <td className="p-4 font-bold">{row.barberoNombre}</td>
-              <td className="p-4">{row.turnosRealizados}</td>
-              <td className="p-4">{money(row.montoBruto)}</td>
-              <td className="p-4 text-green-300">{money(row.comisionBarbero)}</td>
-              <td className="p-4 text-accent">{money(row.parteCasa)}</td>
+              <td className="p-4 font-bold">
+                <span className="block truncate">{row.barberoNombre}</span>
+              </td>
+              <td className="p-4 text-right">{row.turnosRealizados}</td>
+              <td className="p-4 text-right">
+                <span className="block truncate">{money(row.montoBruto)}</span>
+              </td>
+              <td className="p-4 text-right text-green-300">
+                <span className="block truncate">{money(row.comisionBarbero)}</span>
+              </td>
+              <td className="p-4 text-right text-accent">
+                <span className="block truncate">{money(row.parteCasa)}</span>
+              </td>
             </tr>
           ))}
           <tr className="font-bold">
             <td className="p-4">Totales</td>
-            <td className="p-4">{data.filas.reduce((total, row) => total + row.turnosRealizados, 0)}</td>
-            <td className="p-4">{money(data.totalBruto)}</td>
-            <td className="p-4 text-green-300">{money(data.totalComisiones)}</td>
-            <td className="p-4 text-accent">{money(data.totalCasa)}</td>
+            <td className="p-4 text-right">{data.filas.reduce((total, row) => total + row.turnosRealizados, 0)}</td>
+            <td className="p-4 text-right">
+              <span className="block truncate">{money(data.totalBruto)}</span>
+            </td>
+            <td className="p-4 text-right text-green-300">
+              <span className="block truncate">{money(data.totalComisiones)}</span>
+            </td>
+            <td className="p-4 text-right text-accent">
+              <span className="block truncate">{money(data.totalCasa)}</span>
+            </td>
           </tr>
         </tbody>
       </table>
