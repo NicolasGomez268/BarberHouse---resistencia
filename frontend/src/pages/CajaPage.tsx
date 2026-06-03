@@ -1,16 +1,17 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { CajaDiaria } from '../features/caja/components/CajaDiaria'
 import { LiquidacionSemanal } from '../features/caja/components/LiquidacionSemanal'
 import { MetricasMensuales } from '../features/caja/components/MetricasMensuales'
 import { PinModal } from '../features/caja/components/PinModal'
 import { useCaja } from '../features/caja/hooks/useCaja'
+import type { CajaDiariaResumen, SucursalId } from '../types'
 
 type CajaTab = 'diaria' | 'liquidacion' | 'metricas'
 
 const tabs: { id: CajaTab; label: string }[] = [
   { id: 'diaria', label: 'Caja Diaria' },
-  { id: 'liquidacion', label: 'Liquidación Semanal' },
-  { id: 'metricas', label: 'Métricas Mensuales' },
+  { id: 'liquidacion', label: 'Liquidacion Semanal' },
+  { id: 'metricas', label: 'Metricas Mensuales' },
 ]
 
 function todayKey() {
@@ -23,20 +24,39 @@ function daysAgoKey(days: number) {
   return date.toISOString().slice(0, 10)
 }
 
+function money(value: number) {
+  return value.toLocaleString('es-AR', { style: 'currency', currency: 'ARS' })
+}
+
 export function CajaPage() {
-  const { pinValido, sucursales, sucursalesDesbloqueadas, validarPin } = useCaja()
+  const { calcularCajaDiaria, pinValido, sucursales, sucursalesDesbloqueadas, validarPin } = useCaja()
   const [activeTab, setActiveTab] = useState<CajaTab>('diaria')
   const [pinError, setPinError] = useState<string | null>(null)
   const [fecha, setFecha] = useState(todayKey())
+  const [sucursalExpandida, setSucursalExpandida] = useState<SucursalId | null>(null)
   const [desde, setDesde] = useState(daysAgoKey(6))
   const [hasta, setHasta] = useState(todayKey())
   const [mes, setMes] = useState(new Date().getMonth() + 1)
   const [anio, setAnio] = useState(new Date().getFullYear())
 
+  useEffect(() => {
+    setSucursalExpandida((current) => {
+      if (current && sucursalesDesbloqueadas.includes(current)) {
+        return current
+      }
+
+      return sucursalesDesbloqueadas[0] ?? null
+    })
+  }, [sucursalesDesbloqueadas])
+
   function handlePinSubmit(pin: string) {
     const error = validarPin(pin)
     setPinError(error)
     return error
+  }
+
+  function toggleSucursal(id: SucursalId) {
+    setSucursalExpandida((current) => (current === id ? null : id))
   }
 
   return (
@@ -45,9 +65,9 @@ export function CajaPage() {
 
       <header>
         <h1 className="text-[30px] font-bold leading-tight text-text-primary">
-          Caja: Seguridad, Liquidación y Métricas
+          Caja: Seguridad, Liquidacion y Metricas
         </h1>
-        <p className="mt-2 text-text-secondary">Consultá caja diaria, liquidaciones y métricas por sucursal.</p>
+        <p className="mt-2 text-text-secondary">Consulta caja diaria, liquidaciones y metricas por sucursal.</p>
       </header>
 
       <nav className="mt-8 flex gap-6 overflow-x-auto border-b border-white/10">
@@ -106,7 +126,7 @@ export function CajaPage() {
             </select>
           </label>
           <label className="font-bold text-text-secondary">
-            Año
+            Anio
             <input
               className="mt-2 w-full rounded-lg border border-accent/40 bg-background px-4 py-3 text-text-primary outline-none focus:border-accent"
               onChange={(event) => setAnio(Number(event.target.value))}
@@ -118,25 +138,86 @@ export function CajaPage() {
       ) : null}
 
       {pinValido ? (
-        <section
-          className={`mt-6 grid gap-6 ${sucursalesDesbloqueadas.length > 1 ? '2xl:grid-cols-2' : 'grid-cols-1'}`}
-        >
+        <section className="mt-6 flex flex-col gap-6">
           {sucursalesDesbloqueadas.map((sucursalId) => (
-            <article className="space-y-4 rounded-2xl border border-white/10 bg-background" key={sucursalId}>
-              <h2 className="rounded-t-2xl bg-surface px-5 py-4 text-xl font-bold">{sucursales[sucursalId]}</h2>
-              <div className="px-0 pb-2">
-                {activeTab === 'diaria' ? <CajaDiaria fecha={fecha} sucursalId={sucursalId} /> : null}
-                {activeTab === 'liquidacion' ? (
-                  <LiquidacionSemanal desde={desde} hasta={hasta} sucursalId={sucursalId} />
-                ) : null}
-                {activeTab === 'metricas' ? (
-                  <MetricasMensuales anio={anio} mes={mes} sucursalId={sucursalId} />
-                ) : null}
-              </div>
+            <article className="rounded-2xl border border-white/10 bg-background" key={sucursalId}>
+              {activeTab === 'diaria' ? (
+                <CajaDiariaSucursalCard
+                  data={calcularCajaDiaria(fecha, sucursalId)}
+                  expanded={sucursalExpandida === sucursalId}
+                  fecha={fecha}
+                  name={sucursales[sucursalId]}
+                  onToggle={() => toggleSucursal(sucursalId)}
+                  sucursalId={sucursalId}
+                />
+              ) : (
+                <>
+                  <h2 className="rounded-t-2xl bg-surface px-5 py-4 text-xl font-bold">{sucursales[sucursalId]}</h2>
+                  <div className="p-4">
+                    {activeTab === 'liquidacion' ? (
+                      <LiquidacionSemanal desde={desde} hasta={hasta} sucursalId={sucursalId} />
+                    ) : null}
+                    {activeTab === 'metricas' ? (
+                      <MetricasMensuales anio={anio} mes={mes} sucursalId={sucursalId} />
+                    ) : null}
+                  </div>
+                </>
+              )}
             </article>
           ))}
         </section>
       ) : null}
+    </div>
+  )
+}
+
+function CajaDiariaSucursalCard({
+  data,
+  expanded,
+  fecha,
+  name,
+  onToggle,
+  sucursalId,
+}: {
+  data: CajaDiariaResumen
+  expanded: boolean
+  fecha: string
+  name: string
+  onToggle: () => void
+  sucursalId: SucursalId
+}) {
+  const totalServicios =
+    data.serviciosPorMetodo.efectivo + data.serviciosPorMetodo.transferencia + data.serviciosPorMetodo.tarjeta
+
+  return (
+    <div className="rounded-2xl">
+      <button
+        className="grid w-full gap-3 rounded-2xl border border-transparent bg-surface p-4 text-left transition hover:border-accent/30 lg:grid-cols-[220px_minmax(0,1fr)_auto] lg:items-center"
+        onClick={onToggle}
+        type="button"
+      >
+        <span className="flex items-center gap-2 text-lg font-bold text-text-primary">
+          {name}
+          <span className="text-accent">{expanded ? '^' : 'v'}</span>
+        </span>
+        <span className="truncate text-sm text-text-secondary">
+          {data.turnosRealizados} turnos - {money(totalServicios)} servicios - {money(data.ventasProductos)} productos
+        </span>
+        <span className="text-left lg:text-right">
+          <span className="block text-xs font-bold uppercase tracking-wide text-text-secondary">Total del dia</span>
+          <strong className="text-2xl text-accent">{money(data.totalDia)}</strong>
+        </span>
+      </button>
+
+      <div
+        className={`overflow-hidden transition-all duration-300 ${
+          expanded ? 'max-h-[5000px] opacity-100' : 'max-h-0 opacity-0'
+        }`}
+      >
+        <div className="border-t border-white/10 p-4">
+          <CajaDiaria fecha={fecha} sucursalId={sucursalId} />
+        </div>
+      </div>
     </div>
   )
 }
