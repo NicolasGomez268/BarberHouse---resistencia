@@ -6,56 +6,54 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function hasRole(role) {
-      return isAuthenticated() && request.auth.token.role == role;
+    function isAdmin() {
+      return isAuthenticated() && request.auth.token.role == 'admin';
     }
 
-    function isAdmin() {
-      return hasRole('admin');
+    function canAccessCaja(sucursalId) {
+      return isAdmin() &&
+        sucursalId in request.auth.token.sucursalesConAccesoCaja;
+    }
+
+    // Perfiles de usuario
+    match /usuarios/{uid} {
+      allow read: if isAuthenticated() && (request.auth.uid == uid || isAdmin());
+      allow create, update, delete: if isAdmin();
     }
 
     // Turnos / Agenda
     match /turnos/{turnoId} {
-      allow read: if isAuthenticated();
-      allow create, update, delete: if isAdmin() || hasRole('barbero');
+      allow read, write: if isAdmin();
     }
 
     // Turnos fijos (recurrentes)
     match /turnosFijos/{turnoId} {
-      allow read: if isAuthenticated();
-      allow create, update, delete: if isAdmin() || hasRole('barbero');
+      allow read, write: if isAdmin();
     }
 
-    // Equipo (barberos)
+    // Equipo
     match /barberos/{barberoId} {
-      allow read: if isAuthenticated();
-      allow create, update, delete: if isAdmin();
+      allow read, write: if isAdmin();
     }
 
     // Catálogo de servicios
     match /servicios/{servicioId} {
-      allow read: if isAuthenticated();
-      allow create, update, delete: if isAdmin();
+      allow read, write: if isAdmin();
     }
 
-    // Inventario de productos
+    // Inventario
     match /inventario/{productoId} {
-      allow read: if isAuthenticated();
-      allow create, update, delete: if isAdmin() || hasRole('cajero');
+      allow read, write: if isAdmin();
     }
 
-    // Ventas de productos (dentro de caja)
+    // Ventas
     match /ventas/{ventaId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
-      allow update, delete: if isAdmin();
+      allow read, write: if isAdmin();
     }
 
-    // Caja diaria
-    match /caja/{cajaId} {
-      allow read: if isAuthenticated();
-      allow create, update: if isAdmin() || hasRole('cajero');
-      allow delete: if isAdmin();
+    // Caja — acceso por sucursalesConAccesoCaja
+    match /caja/{sucursalId}/{document=**} {
+      allow read, write: if canAccessCaja(sucursalId);
     }
 
     // Bloquear todo lo demás

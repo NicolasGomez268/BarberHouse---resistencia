@@ -6,6 +6,7 @@ import { InventarioPage } from '../pages/InventarioPage'
 import { LoginPage } from '../pages/LoginPage'
 import { ServiciosPage } from '../pages/ServiciosPage'
 import { AdminLayout } from '../shared/layouts/AdminLayout'
+import { CajaRoute } from '../shared/layouts/CajaRoute'
 import { ProtectedRoute } from '../shared/layouts/ProtectedRoute'
 
 export function AppRoutes() {
@@ -19,7 +20,9 @@ export function AppRoutes() {
           <Route path="/equipo" element={<EquipoPage />} />
           <Route path="/servicios" element={<ServiciosPage />} />
           <Route path="/inventario" element={<InventarioPage />} />
-          <Route path="/caja" element={<CajaPage />} />
+          <Route element={<CajaRoute />}>
+            <Route path="/caja" element={<CajaPage />} />
+          </Route>
         </Route>
       </Route>
       <Route path="*" element={<Navigate to="/agenda" replace />} />

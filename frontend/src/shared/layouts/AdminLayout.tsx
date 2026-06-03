@@ -3,17 +3,21 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import barberHouseLogo from '../../assets/barber-house-logo.svg'
 import { useAuth } from '../hooks/useAuth'
 
-const links = [
-  { to: '/agenda', label: 'Agenda', Icon: CalendarDays },
-  { to: '/equipo', label: 'Equipo', Icon: Users },
-  { to: '/servicios', label: 'Servicios', Icon: Scissors },
-  { to: '/inventario', label: 'Stock', Icon: Boxes },
-  { to: '/caja', label: 'Caja', Icon: Banknote },
+const allLinks = [
+  { to: '/agenda', label: 'Agenda', Icon: CalendarDays, requiresCaja: false },
+  { to: '/equipo', label: 'Equipo', Icon: Users, requiresCaja: false },
+  { to: '/servicios', label: 'Servicios', Icon: Scissors, requiresCaja: false },
+  { to: '/inventario', label: 'Stock', Icon: Boxes, requiresCaja: false },
+  { to: '/caja', label: 'Caja', Icon: Banknote, requiresCaja: true },
 ]
 
 export function AdminLayout() {
-  const { logout } = useAuth()
+  const { logout, user } = useAuth()
   const navigate = useNavigate()
+
+  const links = allLinks.filter(
+    (link) => !link.requiresCaja || (user?.sucursalesConAccesoCaja ?? []).length > 0,
+  )
 
   function handleLogout() {
     logout()
@@ -88,5 +92,3 @@ export function AdminLayout() {
     </div>
   )
 }
-
-

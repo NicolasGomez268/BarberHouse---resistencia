@@ -88,5 +88,6 @@ export const equipoMock: Usuario[] = MOCK_BARBEROS.map((barbero) => ({
   id: barbero.id,
   email: `${barbero.id}@peluqueria.local`,
   nombre: barbero.nombre,
-  rol: 'barbero',
+  rol: 'admin',
+  sucursalesConAccesoCaja: [],
 }))

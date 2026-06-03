@@ -3,8 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev":"npm run build:functions && concurrently --kill-others-on-fail --names \"TSC,EMU,WEB\" --prefix-colors \"blue,cyan,magenta\" \"npm run watch --prefix functions\" \"npm run emulators\" \"npm run dev:frontend\"",
-    "emulators": "firebase emulators:start --only auth,firestore,functions",
+    "dev":"npm run build:functions && concurrently --kill-others-on-fail --names \"TSC,EMU,WEB\" --prefix-colors \"blue,cyan,magenta\" \"npm run watch --prefix functions\" \"npm run emulators:import\" \"npm run dev:frontend\"",
+    "emulators": "firebase emulators:start --only auth,firestore,functions --export-on-exit .emulator-data",
+    "emulators:import": "firebase emulators:start --only auth,firestore,functions --import .emulator-data --export-on-exit .emulator-data",
     "emulators:export": "firebase emulators:export .emulator-data --only auth,firestore",
     "dev:frontend": "cd frontend && npm run dev",
     "build:functions": "npm run build --prefix functions",

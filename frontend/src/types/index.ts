@@ -3,21 +3,13 @@ export type ID = string
 export type Estado = 'PENDIENTE' | 'CONFIRMADO' | 'REALIZADO' | 'CANCELADO' | 'NO_ASISTIO' | 'AUSENTE_FIJO'
 export type MetodoPago = 'efectivo' | 'transferencia' | 'tarjeta'
 export type MetodoPagoMock = 'EFECTIVO' | 'TRANSFERENCIA' | 'TARJETA'
-export type Rol = 'admin' | 'peluquero'
 export type SucursalId = 's1' | 's2'
 
 export type Usuario = {
   id: ID
   email: string
   nombre: string
-  rol: 'admin' | 'barbero' | 'cajero'
-}
-
-export type UserProfile = {
-  uid: string
-  rol: Rol
-  nombre: string
-  email: string
+  rol: 'admin'
   sucursalesConAccesoCaja: SucursalId[]
 }
 

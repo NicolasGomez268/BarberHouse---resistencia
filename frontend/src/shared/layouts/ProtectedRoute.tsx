@@ -4,11 +4,6 @@ import { useAuth } from '../hooks/useAuth'
 
 export function ProtectedRoute() {
   const { user, loading } = useAuth()
-  const useMocks = import.meta.env.VITE_USE_MOCKS !== 'false'
-
-  if (useMocks) {
-    return <Outlet />
-  }
 
   if (loading) {
     return (
