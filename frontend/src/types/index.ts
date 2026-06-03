@@ -103,18 +103,33 @@ export type TurnoFijo = {
   pausadoHasta?: string
 }
 
+export type StockSucursal = {
+  sucursalId: SucursalId
+  stockActual: number
+}
+
 export type Producto = {
   id: string
   nombre: string
   variante?: string
-  categoria?: string
-  precioCosto?: number
-  precioVenta?: number
-  stockActual?: number
+  categoria: string
+  precioCosto: number
+  precioVenta: number
+  stockPorSucursal: StockSucursal[]
   descripcion?: string
-  isActive?: boolean
-  stock?: number
+  isActive: boolean
   stockMinimo?: number
+}
+
+export type TransferenciaStock = {
+  id: string
+  productoId: string
+  sucursalOrigen: SucursalId
+  sucursalDestino: SucursalId
+  cantidad: number
+  fecha: string
+  solicitadoPor: string
+  notas?: string
 }
 
 export type Venta = {

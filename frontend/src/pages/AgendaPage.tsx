@@ -6,7 +6,7 @@ import { ModalNuevoTurnoFijo } from '../features/agenda/components/ModalNuevoTur
 import { useTurnos } from '../features/agenda/hooks/useTurnos'
 import { getAvailableSlots } from '../features/agenda/lib/appointments'
 import { MOCK_BARBEROS, MOCK_HORARIOS, MOCK_SERVICIOS } from '../mocks'
-import type { MetodoPagoMock, Turno, TurnoFijo } from '../types'
+import type { MetodoPagoMock, SucursalId, Turno, TurnoFijo } from '../types'
 
 type CalendarDay = {
   date: Date
@@ -18,6 +18,7 @@ const weekDays = ['LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB', 'DOM']
 type TurnoForm = {
   barberoId: string
   servicioId: string
+  sucursalId: SucursalId
   clienteNombre: string
   clienteTelefono: string
   fecha: string
@@ -129,6 +130,7 @@ export function AgendaPage() {
   const [turnoForm, setTurnoForm] = useState<TurnoForm>({
     barberoId: MOCK_BARBEROS[0]?.id ?? '',
     servicioId: MOCK_SERVICIOS[0]?.id ?? '',
+    sucursalId: MOCK_BARBEROS[0]?.sucursalId ?? 's1',
     clienteNombre: '',
     clienteTelefono: '',
     fecha: toDateKey(new Date()),
@@ -271,6 +273,7 @@ export function AgendaPage() {
         startTime: turnoForm.hora,
         clienteNombre: turnoForm.clienteNombre,
         clienteTelefono: turnoForm.clienteTelefono || undefined,
+        sucursalId: turnoForm.sucursalId,
       })
       setSelectedDate(turnoForm.fecha)
       setTurnosPage(1)
@@ -1026,7 +1029,10 @@ export function AgendaPage() {
               />
               <select
                 className="w-full rounded-lg border border-[#3f3f3f] bg-[#111111] px-4 py-3 text-white"
-                onChange={(event) => setTurnoForm((current) => ({ ...current, barberoId: event.target.value }))}
+                onChange={(event) => {
+                  const barbero = MOCK_BARBEROS.find((current) => current.id === event.target.value)
+                  setTurnoForm((current) => ({ ...current, barberoId: event.target.value, sucursalId: barbero?.sucursalId ?? current.sucursalId }))
+                }}
                 value={turnoForm.barberoId}
               >
                 {MOCK_BARBEROS.map((barbero) => (
@@ -1041,6 +1047,14 @@ export function AgendaPage() {
                 {MOCK_SERVICIOS.map((servicio) => (
                   <option key={servicio.id} value={servicio.id}>{servicio.nombre}</option>
                 ))}
+              </select>
+              <select
+                className="w-full rounded-lg border border-[#3f3f3f] bg-[#111111] px-4 py-3 text-white"
+                onChange={(event) => setTurnoForm((current) => ({ ...current, sucursalId: event.target.value as SucursalId }))}
+                value={turnoForm.sucursalId}
+              >
+                <option value="s1">Sucursal 1</option>
+                <option value="s2">Sucursal 2</option>
               </select>
               <section className="rounded-xl border border-[#242424] bg-[#0a0a0a] p-4">
                 <div className="flex items-center justify-between gap-3">
