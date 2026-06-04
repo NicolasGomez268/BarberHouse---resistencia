@@ -314,7 +314,14 @@ export function EquipoPage() {
                   <input
                     checked={form.esDueno}
                     className="h-4 w-4 accent-[#f5c518]"
-                    onChange={(event) => setForm((currentForm) => ({ ...currentForm, esDueno: event.target.checked }))}
+                    onChange={(event) => {
+                      const esDueno = event.target.checked
+                      setForm((currentForm) => ({
+                        ...currentForm,
+                        esDueno,
+                        porcentajeCasa: esDueno ? '100' : currentForm.porcentajeCasa,
+                      }))
+                    }}
                     type="checkbox"
                   />
                   <span>Es el dueño (recibe 100% de sus cortes)</span>
@@ -323,7 +330,8 @@ export function EquipoPage() {
                 <label className="block">
                   <span className="font-bold">Porcentaje para la Casa (%)</span>
                   <input
-                    className="mt-2 w-full rounded-lg border border-[#6b6b6b] bg-[#111111] px-4 py-3 text-white outline-none focus:border-[#f5c518]"
+                    className="mt-2 w-full rounded-lg border border-[#6b6b6b] bg-[#111111] px-4 py-3 text-white outline-none focus:border-[#f5c518] disabled:cursor-not-allowed disabled:opacity-40"
+                    disabled={form.esDueno}
                     max="100"
                     min="0"
                     onChange={(event) =>
@@ -332,7 +340,9 @@ export function EquipoPage() {
                     type="number"
                     value={form.porcentajeCasa}
                   />
-                  <span className="mt-1 block text-xs text-[#6b6b6b]">El barbero recibirá el resto</span>
+                  <span className="mt-1 block text-xs text-[#6b6b6b]">
+                    {form.esDueno ? 'El dueño retiene el 100% de sus cortes' : 'El barbero recibirá el resto'}
+                  </span>
                 </label>
               </div>
             </div>

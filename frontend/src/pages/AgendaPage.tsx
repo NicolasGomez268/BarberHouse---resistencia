@@ -5,7 +5,7 @@ import { ModalEditarTurnoFijo } from '../features/agenda/components/ModalEditarT
 import { ModalNuevoTurnoFijo } from '../features/agenda/components/ModalNuevoTurnoFijo'
 import { useTurnos } from '../features/agenda/hooks/useTurnos'
 import { getAvailableSlots } from '../features/agenda/lib/appointments'
-import { MOCK_BARBEROS, MOCK_HORARIOS } from '../mocks'
+import { useEquipo } from '../features/equipo/hooks/useEquipo'
 import { useServicios } from '../features/servicios/hooks/useServicios'
 import type { MetodoPagoMock, Turno, TurnoFijo } from '../types'
 
@@ -88,6 +88,8 @@ function isHistoricalTurno(turno: Turno, now: Date) {
 export function AgendaPage() {
   const { servicios } = useServicios()
   const serviciosActivos = servicios.filter((s) => s.isActive ?? true)
+  const { barberos, horarios } = useEquipo()
+  const barberosActivos = barberos.filter((b) => b.isActive ?? b.activo ?? true)
   const {
     turnos,
     turnosFijos,
@@ -135,7 +137,7 @@ export function AgendaPage() {
   })
   const [turnoForm, setTurnoForm] = useState<TurnoForm>({
     sucursalId: '',
-    barberoId: MOCK_BARBEROS[0]?.id ?? '',
+    barberoId: barberos[0]?.id ?? '',
     servicioId: servicios[0]?.id ?? '',
     clienteNombre: '',
     clienteTelefono: '',
@@ -228,9 +230,9 @@ export function AgendaPage() {
       serviceDuration: selectedService.duracionMinutos,
       turnos,
       turnosFijos,
-      barberos: MOCK_BARBEROS,
+      barberos: barberos,
       servicios: servicios,
-      horarios: MOCK_HORARIOS,
+      horarios: horarios,
     })
 
     if (turnoForm.fecha !== todayKey) return slots
@@ -304,11 +306,11 @@ export function AgendaPage() {
   }
 
   function getBarberName(turno: Turno) {
-    return MOCK_BARBEROS.find((barbero) => barbero.id === turno.barberoId)?.nombre ?? turno.barberoId ?? 'Sin barbero'
+    return barberos.find((barbero) => barbero.id === turno.barberoId)?.nombre ?? turno.barberoId ?? 'Sin barbero'
   }
 
   function getBarberNameById(barberoId: string) {
-    return MOCK_BARBEROS.find((barbero) => barbero.id === barberoId)?.nombre ?? barberoId
+    return barberos.find((barbero) => barbero.id === barberoId)?.nombre ?? barberoId
   }
 
   function getServiceNameById(servicioId: string) {
@@ -554,7 +556,7 @@ export function AgendaPage() {
               value={selectedBarberId}
             >
               <option value="">Seleccionar Barbero</option>
-              {MOCK_BARBEROS.map((barbero) => (
+              {barberos.map((barbero) => (
                 <option key={barbero.id} value={barbero.id}>{barbero.nombre}</option>
               ))}
             </select>
@@ -1178,7 +1180,7 @@ export function AgendaPage() {
                 onChange={(event) => setTurnoForm((current) => ({ ...current, barberoId: event.target.value }))}
                 value={turnoForm.barberoId}
               >
-                {MOCK_BARBEROS.map((barbero) => (
+                {barberos.map((barbero) => (
                   <option key={barbero.id} value={barbero.id}>{barbero.nombre}</option>
                 ))}
               </select>
@@ -1267,7 +1269,7 @@ export function AgendaPage() {
       ) : null}
 
       <ModalNuevoTurnoFijo
-        barberos={MOCK_BARBEROS}
+        barberos={barberos}
         isOpen={isTurnoFijoModalOpen}
         onClose={() => setIsTurnoFijoModalOpen(false)}
         onGuardar={handleGuardarTurnoFijo}
@@ -1276,7 +1278,7 @@ export function AgendaPage() {
 
       {turnoFijoSeleccionado ? (
         <ModalEditarTurnoFijo
-          barberos={MOCK_BARBEROS}
+          barberos={barberos}
           isOpen={showModalEditar}
           onClose={() => {
             setShowModalEditar(false)
