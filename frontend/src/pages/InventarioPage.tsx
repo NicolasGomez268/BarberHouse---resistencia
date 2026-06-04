@@ -384,13 +384,57 @@ function FormInput({ label, onChange, optional = false, placeholder, type = 'tex
 }
 
 function SaleForm({ onSubmit, products, sale, saleError, setSale }: { onSubmit: (event: FormEvent<HTMLFormElement>) => void; products: Producto[]; sale: SaleFormState; saleError: string | null; setSale: React.Dispatch<React.SetStateAction<SaleFormState>> }) {
+  const [saleSearch, setSaleSearch] = useState('')
   const selectedProduct = products.find((product) => product.id === sale.productoId)
   const total = (selectedProduct?.precioVenta ?? 0) * (Number(sale.cantidad) || 0)
+  const filteredSaleProducts = saleSearch.trim()
+    ? products.filter((p) =>
+        `${p.nombre} ${p.variante ?? ''}`.toLowerCase().includes(saleSearch.trim().toLowerCase()),
+      )
+    : []
   return (
     <form className="mt-6 rounded-lg bg-[#111111] p-6" onSubmit={onSubmit}>
       <h2 className="text-xl font-bold">Registrar Venta de Producto</h2>
       <div className="mt-6 grid gap-4 lg:grid-cols-[1fr_140px_140px]">
-        <label className="block"><span className="font-bold">Producto *</span><select className="mt-2 w-full rounded-lg border border-[#6b5600] bg-[#0a0a0a] px-4 py-3 text-white outline-none focus:border-[#f5c518]" onChange={(event) => setSale((current) => ({ ...current, productoId: event.target.value }))} value={sale.productoId}>{products.map((product) => <option key={product.id} value={product.id}>{product.nombre} {product.variante}</option>)}</select></label>
+        <div className="relative">
+          <span className="font-bold">Producto *</span>
+          {selectedProduct && !saleSearch ? (
+            <div className="mt-2 flex items-center justify-between rounded-lg border border-[#f5c518] bg-[#0a0a0a] px-4 py-3">
+              <span className="text-white">{selectedProduct.nombre}{selectedProduct.variante ? ` — ${selectedProduct.variante}` : ''} <span className="text-sm text-[#a0a0a0]">({selectedProduct.stockActual ?? 0} u.)</span></span>
+              <button className="ml-3 text-[#a0a0a0] hover:text-white" onClick={() => { setSaleSearch(' '); setSale((c) => ({ ...c, productoId: '' })) }} type="button">✕</button>
+            </div>
+          ) : (
+            <div className="relative mt-2">
+              <input
+                autoComplete="off"
+                className="w-full rounded-lg border border-[#6b5600] bg-[#0a0a0a] px-4 py-3 text-white outline-none placeholder:text-[#6b7280] focus:border-[#f5c518]"
+                onChange={(e) => setSaleSearch(e.target.value)}
+                placeholder="Escribí para buscar un producto..."
+                type="text"
+                value={saleSearch.trim() === '' ? '' : saleSearch}
+              />
+              {filteredSaleProducts.length > 0 ? (
+                <ul className="absolute z-20 mt-1 max-h-52 w-full overflow-y-auto rounded-lg border border-[#6b5600] bg-[#0a0a0a] shadow-xl">
+                  {filteredSaleProducts.map((product) => (
+                    <li key={product.id}>
+                      <button
+                        className="w-full px-4 py-3 text-left text-white hover:bg-[#1a1700] hover:text-[#f5c518]"
+                        onClick={() => { setSale((c) => ({ ...c, productoId: product.id })); setSaleSearch('') }}
+                        type="button"
+                      >
+                        <span className="font-bold">{product.nombre}</span>
+                        {product.variante ? <span className="text-[#a0a0a0]"> — {product.variante}</span> : null}
+                        <span className="ml-2 text-sm text-[#6b7280]">({product.stockActual ?? 0} u.)</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : saleSearch.trim() ? (
+                <p className="mt-2 text-sm text-[#a0a0a0]">Sin resultados para "{saleSearch.trim()}"</p>
+              ) : null}
+            </div>
+          )}
+        </div>
         <FormInput label="Cantidad" onChange={(value) => setSale((current) => ({ ...current, cantidad: value }))} type="number" value={sale.cantidad} />
         <FormInput label="Precio unit." onChange={() => undefined} type="number" value={String(selectedProduct?.precioVenta ?? 0)} />
       </div>
