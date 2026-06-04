@@ -89,7 +89,6 @@ export function AgendaPage() {
   const { servicios } = useServicios()
   const serviciosActivos = servicios.filter((s) => s.isActive ?? true)
   const { barberos, horarios } = useEquipo()
-  const barberosActivos = barberos.filter((b) => b.isActive ?? b.activo ?? true)
   const {
     turnos,
     turnosFijos,
@@ -107,7 +106,7 @@ export function AgendaPage() {
     eliminarTurnoFijo,
     pausarTurnoFijo,
     reanudarTurnoFijo,
-  } = useTurnos()
+  } = useTurnos(servicios)
   const [currentDate, setCurrentDate] = useState<Date>(() => new Date())
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [selectedBarberId, setSelectedBarberId] = useState('')

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { createAppointment, type CreateAppointmentParams } from '../lib/appointments'
 import { MOCK_BARBEROS, MOCK_HORARIOS, MOCK_SERVICIOS, MOCK_TURNOS, MOCK_TURNOS_FIJOS } from '../../../mocks'
 import { apiClient } from '../../../shared/api/client'
-import type { MetodoPago, MetodoPagoMock, SucursalId, Turno, TurnoFijo } from '../../../types'
+import type { MetodoPago, MetodoPagoMock, Servicio, SucursalId, Turno, TurnoFijo } from '../../../types'
 
 const USE_MOCKS = import.meta.env.VITE_USE_MOCKS !== 'false'
 
@@ -18,7 +18,7 @@ function getProximaFecha(fechasAgendadas: string[]) {
   return sorted.find((f) => f >= hoy) ?? sorted[0] ?? hoy
 }
 
-export function useTurnos() {
+export function useTurnos(servicios: Servicio[] = []) {
   const [turnos, setTurnos] = useState<Turno[]>(USE_MOCKS ? MOCK_TURNOS : [])
   const [turnosFijos, setTurnosFijos] = useState<TurnoFijo[]>(USE_MOCKS ? MOCK_TURNOS_FIJOS : [])
   const [loading, setLoading] = useState(!USE_MOCKS)
@@ -62,7 +62,7 @@ export function useTurnos() {
   async function crearTurno(params: CreateAppointmentParams) {
     if (!USE_MOCKS) {
       try {
-        const servicio = MOCK_SERVICIOS.find((s) => s.id === params.serviceId)
+        const servicio = servicios.find((s) => s.id === params.serviceId)
         const horaFin = servicio ? addMinutes(params.startTime, servicio.duracionMinutos) : undefined
         const { data } = await apiClient.post<{ turno: Turno }>('/agenda', {
           sucursalId: params.sucursalId,
