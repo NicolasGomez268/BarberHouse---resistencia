@@ -16,6 +16,7 @@ type CalendarDay = {
 const weekDays = ['LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB', 'DOM']
 
 type TurnoForm = {
+  sucursalId: string
   barberoId: string
   servicioId: string
   clienteNombre: string
@@ -114,6 +115,9 @@ export function AgendaPage() {
   const [showModalEditar, setShowModalEditar] = useState(false)
   const [showConfirmarEliminar, setShowConfirmarEliminar] = useState(false)
   const [showTurnosFijos, setShowTurnosFijos] = useState(false)
+  const [searchFijos, setSearchFijos] = useState('')
+  const [fijosPagina, setFijosPagina] = useState(1)
+  const FIJOS_POR_PAGINA = 10
   const [turnoFijoSeleccionado, setTurnoFijoSeleccionado] = useState<TurnoFijo | null>(null)
   const [selectedTurno, setSelectedTurno] = useState<Turno | null>(null)
   const [paymentTurno, setPaymentTurno] = useState<Turno | null>(null)
@@ -127,6 +131,7 @@ export function AgendaPage() {
     metodoPago: '',
   })
   const [turnoForm, setTurnoForm] = useState<TurnoForm>({
+    sucursalId: '',
     barberoId: MOCK_BARBEROS[0]?.id ?? '',
     servicioId: MOCK_SERVICIOS[0]?.id ?? '',
     clienteNombre: '',
@@ -214,7 +219,7 @@ export function AgendaPage() {
   const availableSlots = useMemo(() => {
     if (!turnoForm.barberoId || !turnoForm.fecha || !selectedService) return []
 
-    return getAvailableSlots({
+    const slots = getAvailableSlots({
       barberId: turnoForm.barberoId,
       date: turnoForm.fecha,
       serviceDuration: selectedService.duracionMinutos,
@@ -223,6 +228,15 @@ export function AgendaPage() {
       barberos: MOCK_BARBEROS,
       servicios: MOCK_SERVICIOS,
       horarios: MOCK_HORARIOS,
+    })
+
+    if (turnoForm.fecha !== todayKey) return slots
+
+    const now = new Date()
+    const currentMinutes = now.getHours() * 60 + now.getMinutes()
+    return slots.filter((slot) => {
+      const [h, m] = slot.start.split(':').map(Number)
+      return h * 60 + m > currentMinutes
     })
   }, [selectedService, turnoForm.barberoId, turnoForm.fecha, turnos, turnosFijos])
 
@@ -265,6 +279,7 @@ export function AgendaPage() {
     try {
       crearTurno({
         clientId: `cliente-${Date.now()}`,
+        sucursalId: turnoForm.sucursalId as import('../types').SucursalId,
         barberId: turnoForm.barberoId,
         serviceId: turnoForm.servicioId,
         date: turnoForm.fecha,
@@ -590,17 +605,72 @@ export function AgendaPage() {
 
       {turnosFijos.length > 0 ? (
         <section className="mt-4 rounded-2xl border border-[#111111] bg-[#050505] p-4">
-          <button
-            className="flex w-full items-center justify-between text-left"
-            onClick={() => setShowTurnosFijos((current) => !current)}
-            type="button"
-          >
-            <span className="font-bold text-white">Turnos Fijos Activos</span>
-            <span className="text-sm text-[#f5c518]">{showTurnosFijos ? 'Ocultar' : 'Ver'}</span>
-          </button>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <button
+              className="flex items-center gap-2 text-left"
+              onClick={() => setShowTurnosFijos((current) => !current)}
+              type="button"
+            >
+              <span className="font-bold text-white">Turnos Fijos Activos</span>
+              <span className="rounded-full bg-[#1a1700] px-2 py-0.5 text-xs font-bold text-[#f5c518]">
+                {turnosFijos.filter((tf) => {
+                  const fecha = selectedDate ?? todayKey
+                  return (
+                    tf.activo &&
+                    (!tf.pausadoHasta || tf.pausadoHasta < fecha) &&
+                    tf.fechasAgendadas.includes(fecha)
+                  )
+                }).length}
+              </span>
+              <span className="text-sm text-[#f5c518]">{showTurnosFijos ? 'Ocultar' : 'Ver'}</span>
+            </button>
+            {showTurnosFijos ? (
+              <input
+                className="rounded-lg border border-[#2a2a2a] bg-[#0f0f0f] px-3 py-2 text-sm text-white outline-none placeholder:text-[#a0a0a0] focus:border-[#f5c518] sm:w-64"
+                onChange={(e) => { setSearchFijos(e.target.value); setFijosPagina(1) }}
+                placeholder="Buscar cliente..."
+                type="search"
+                value={searchFijos}
+              />
+            ) : null}
+          </div>
+
+          {(() => {
+            const porVencer = turnosFijos.filter((tf) => {
+              if (!tf.activo || (tf.pausadoHasta && tf.pausadoHasta >= todayKey)) return false
+              return tf.fechasAgendadas.filter((f) => f >= todayKey).length <= 2
+            })
+            if (porVencer.length === 0) return null
+            return (
+              <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm">
+                <span className="font-bold text-amber-400">⚠ {porVencer.length} turno{porVencer.length > 1 ? 's fijos' : ' fijo'} por vencer: </span>
+                <span className="text-amber-300">{porVencer.map((tf) => tf.clienteNombre).join(', ')}</span>
+                <span className="text-amber-400/70"> — editá las fechas para renovarlos.</span>
+              </div>
+            )
+          })()}
 
           {showTurnosFijos ? (
             <div className="mt-4 overflow-x-auto">
+              {(() => {
+                const normalSearch = searchFijos.trim().toLowerCase()
+                const fijosFiltrados = turnosFijos.filter((tf) => {
+                  if (!normalSearch) return true
+                  return (
+                    tf.clienteNombre.toLowerCase().includes(normalSearch) ||
+                    (tf.clienteTelefono ?? '').toLowerCase().includes(normalSearch)
+                  )
+                })
+                const totalPaginas = Math.max(1, Math.ceil(fijosFiltrados.length / FIJOS_POR_PAGINA))
+                const fijosPaginados = fijosFiltrados.slice(
+                  (fijosPagina - 1) * FIJOS_POR_PAGINA,
+                  fijosPagina * FIJOS_POR_PAGINA,
+                )
+                return (
+                  <>
+                    {fijosFiltrados.length === 0 ? (
+                      <p className="py-4 text-sm text-[#a0a0a0]">Sin resultados para "{searchFijos}".</p>
+                    ) : null}
               <table className="w-full min-w-[760px] text-left text-sm">
                 <thead className="text-[#a0a0a0]">
                   <tr className="border-b border-[#242424]">
@@ -615,12 +685,23 @@ export function AgendaPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {turnosFijos.map((turnoFijo) => {
+                  {fijosPaginados.map((turnoFijo) => {
                     const isPaused = Boolean(turnoFijo.pausadoHasta && turnoFijo.pausadoHasta >= todayKey)
+                    const fechasFuturas = turnoFijo.fechasAgendadas.filter((f) => f >= todayKey)
+                    const pocasFechas = !isPaused && turnoFijo.activo && fechasFuturas.length <= 2
 
                     return (
-                      <tr className="border-b border-[#111111] text-white" key={turnoFijo.id}>
-                        <td className="py-3 font-bold">{turnoFijo.clienteNombre}</td>
+                      <tr className={`border-b text-white ${pocasFechas ? 'border-amber-500/30 bg-amber-500/5' : 'border-[#111111]'}`} key={turnoFijo.id}>
+                        <td className="py-3 font-bold">
+                          <div className="flex flex-wrap items-center gap-2">
+                            {turnoFijo.clienteNombre}
+                            {pocasFechas ? (
+                              <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-xs font-bold text-amber-400 border border-amber-500/30">
+                                ⚠ {fechasFuturas.length === 0 ? 'Sin fechas' : `Queda ${fechasFuturas.length} fecha${fechasFuturas.length > 1 ? 's' : ''}`} — renovar
+                              </span>
+                            ) : null}
+                          </div>
+                        </td>
                         <td className="py-3 text-[#a0a0a0]">{getBarberNameById(turnoFijo.barberoId)}</td>
                         <td className="py-3 text-[#a0a0a0]">{getServiceNameById(turnoFijo.servicioId)}</td>
                         <td className="py-3 text-[#a0a0a0]">{turnoFijo.hora}</td>
@@ -646,6 +727,23 @@ export function AgendaPage() {
                         </td>
                         <td className="py-3">
                           <div className="flex flex-wrap gap-2">
+                          {!isPaused ? (() => {
+                            const turnoProximo = turnos.find(
+                              (t) =>
+                                t.turnoFijoId === turnoFijo.id &&
+                                t.fecha === turnoFijo.proximaFecha &&
+                                (t.estado === 'PENDIENTE' || t.estado === 'CONFIRMADO'),
+                            )
+                            return turnoProximo ? (
+                              <button
+                                className="rounded-lg border border-purple-500/40 bg-purple-500/10 px-3 py-2 text-xs font-bold text-purple-400 transition hover:bg-purple-500/20"
+                                onClick={() => marcarAusenteFijo(turnoProximo.id)}
+                                type="button"
+                              >
+                                No viene
+                              </button>
+                            ) : null
+                          })() : null}
                           {isPaused ? (
                             <button
                               className="rounded-lg border border-[#2f2f2f] bg-[#111111] px-3 py-2 text-xs font-bold text-white"
@@ -684,6 +782,32 @@ export function AgendaPage() {
                   })}
                 </tbody>
               </table>
+              {totalPaginas > 1 ? (
+                <div className="mt-3 flex items-center justify-between text-sm text-[#a0a0a0]">
+                  <span>Página {fijosPagina} de {totalPaginas} · {fijosFiltrados.length} resultados</span>
+                  <div className="flex gap-2">
+                    <button
+                      className="rounded-lg bg-[#111111] px-3 py-2 text-white disabled:opacity-40"
+                      disabled={fijosPagina === 1}
+                      onClick={() => setFijosPagina((p) => Math.max(1, p - 1))}
+                      type="button"
+                    >
+                      Anterior
+                    </button>
+                    <button
+                      className="rounded-lg bg-[#111111] px-3 py-2 text-white disabled:opacity-40"
+                      disabled={fijosPagina === totalPaginas}
+                      onClick={() => setFijosPagina((p) => Math.min(totalPaginas, p + 1))}
+                      type="button"
+                    >
+                      Siguiente
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+                  </>
+                )
+              })()}
             </div>
           ) : null}
         </section>
@@ -823,11 +947,23 @@ export function AgendaPage() {
                   onClick={() => openAssignReplacement(selectedTurno)}
                   type="button"
                 >
-                  Asignar cliente
+                  Asignar cliente para este turno
                 </button>
               </div>
             ) : (
             <div className="grid gap-3 border-t border-[#242424] px-6 py-5 sm:grid-cols-3">
+              {selectedTurno.esFijo && selectedTurno.turnoFijoId && (selectedTurno.estado === 'PENDIENTE' || selectedTurno.estado === 'CONFIRMADO') ? (
+                <button
+                  className="col-span-full rounded-lg border border-purple-500/30 bg-purple-500/10 px-4 py-3 text-sm font-bold text-purple-400 transition hover:border-purple-400 hover:bg-purple-500/20"
+                  onClick={() => {
+                    marcarAusenteFijo(selectedTurno.id)
+                    setSelectedTurno(null)
+                  }}
+                  type="button"
+                >
+                  El cliente fijo no viene — liberar turno
+                </button>
+              ) : null}
               <a
                 className="rounded-lg border border-[#3f4c2a] bg-[#202713] px-4 py-3 text-center text-sm font-bold text-[#f5c518] transition hover:border-[#f5c518]"
                 href={getWhatsAppUrl(selectedTurno, getReminderMessage(selectedTurno))}
@@ -1005,6 +1141,16 @@ export function AgendaPage() {
               <p className="mt-1 text-sm text-[#a0a0a0]">Elegí barbero, fecha y servicio para ver horarios disponibles.</p>
             </div>
             <div className="max-h-[68vh] space-y-4 overflow-y-auto px-6 py-5">
+              <select
+                className="w-full rounded-lg border border-[#3f3f3f] bg-[#111111] px-4 py-3 text-white"
+                onChange={(event) => setTurnoForm((current) => ({ ...current, sucursalId: event.target.value }))}
+                required
+                value={turnoForm.sucursalId}
+              >
+                <option value="" disabled>Sucursal</option>
+                <option value="s1">Sucursal 1</option>
+                <option value="s2">Sucursal 2</option>
+              </select>
               <input
                 className="w-full rounded-lg border border-[#3f3f3f] bg-[#111111] px-4 py-3 text-white"
                 onChange={(event) => setTurnoForm((current) => ({ ...current, clienteNombre: event.target.value }))}
@@ -1107,7 +1253,7 @@ export function AgendaPage() {
               </button>
               <button
                 className="rounded-lg bg-[#f5c518] px-4 py-3 font-bold text-black disabled:cursor-not-allowed disabled:opacity-50"
-                disabled={availableSlots.length === 0 || !turnoForm.hora}
+                disabled={availableSlots.length === 0 || !turnoForm.hora || !turnoForm.sucursalId}
                 type="submit"
               >
                 Crear Turno
