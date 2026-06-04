@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { MOCK_BARBEROS, MOCK_HORARIOS } from '../../../mocks'
+import { apiClient } from '../../../shared/api/client'
 import type { Barbero, HorarioSemanal } from '../../../types'
 
 const USE_MOCKS = import.meta.env.VITE_USE_MOCKS !== 'false'
@@ -7,34 +8,62 @@ const USE_MOCKS = import.meta.env.VITE_USE_MOCKS !== 'false'
 export function useEquipo() {
   const [barberos, setBarberos] = useState<Barbero[]>(USE_MOCKS ? MOCK_BARBEROS : [])
   const [horarios, setHorarios] = useState<HorarioSemanal[]>(USE_MOCKS ? MOCK_HORARIOS : [])
-  const [loading] = useState(false)
-  const [error] = useState<string | null>(null)
+  const [loading, setLoading] = useState(!USE_MOCKS)
+  const [error, setError] = useState<string | null>(null)
 
-  function agregarBarbero(barbero: Omit<Barbero, 'id'>) {
+  async function cargarEquipo() {
+    try {
+      const { data } = await apiClient.get<{ barberos: Barbero[]; horarios: HorarioSemanal[] }>('/equipo')
+      setBarberos(data.barberos)
+      setHorarios(data.horarios)
+    } catch {
+      setError('Error al cargar el equipo')
+    }
+  }
+
+  useEffect(() => {
+    if (USE_MOCKS) return
+    setLoading(true)
+    cargarEquipo().finally(() => setLoading(false))
+  }, [])
+
+  async function agregarBarbero(barbero: Omit<Barbero, 'id'>) {
     if (!USE_MOCKS) {
-      // TODO: POST /api/v1/equipo/barberos
+      try {
+        await apiClient.post('/equipo', barbero)
+        await cargarEquipo()
+      } catch {
+        setError('Error al crear el barbero')
+      }
       return
     }
-
     const nuevo: Barbero = { ...barbero, id: `barbero-${Date.now()}` }
     setBarberos((prev) => [nuevo, ...prev])
   }
 
-  function actualizarBarbero(id: string, datos: Partial<Barbero>) {
+  async function actualizarBarbero(id: string, datos: Partial<Barbero>) {
     if (!USE_MOCKS) {
-      // TODO: PATCH /api/v1/equipo/barberos/:id
+      try {
+        await apiClient.patch(`/equipo/${id}`, datos)
+        await cargarEquipo()
+      } catch {
+        setError('Error al actualizar el barbero')
+      }
       return
     }
-
     setBarberos((prev) => prev.map((barbero) => (barbero.id === id ? { ...barbero, ...datos } : barbero)))
   }
 
-  function toggleActivo(id: string) {
+  async function toggleActivo(id: string) {
     if (!USE_MOCKS) {
-      // TODO: PATCH /api/v1/equipo/barberos/:id/toggle
+      try {
+        await apiClient.patch(`/equipo/${id}/toggle`)
+        await cargarEquipo()
+      } catch {
+        setError('Error al cambiar el estado del barbero')
+      }
       return
     }
-
     setBarberos((prev) =>
       prev.map((barbero) => {
         if (barbero.id !== id) return barbero
@@ -44,12 +73,20 @@ export function useEquipo() {
     )
   }
 
-  function actualizarHorario(horario: HorarioSemanal) {
+  async function actualizarHorario(horario: HorarioSemanal) {
     if (!USE_MOCKS) {
-      // TODO: PUT /api/v1/equipo/barberos/:id/horario
+      try {
+        await apiClient.put(`/equipo/${horario.barberoId}/horario`, horario)
+        setHorarios((prev) => {
+          const existe = prev.find((h) => h.barberoId === horario.barberoId)
+          if (existe) return prev.map((h) => (h.barberoId === horario.barberoId ? horario : h))
+          return [...prev, horario]
+        })
+      } catch {
+        setError('Error al guardar el horario')
+      }
       return
     }
-
     setHorarios((prev) => {
       const existe = prev.find((current) => current.barberoId === horario.barberoId)
       if (existe) {
@@ -59,12 +96,16 @@ export function useEquipo() {
     })
   }
 
-  function eliminarBarbero(id: string) {
+  async function eliminarBarbero(id: string) {
     if (!USE_MOCKS) {
-      // TODO: DELETE /api/v1/equipo/barberos/:id
+      try {
+        await apiClient.delete(`/equipo/${id}`)
+        await cargarEquipo()
+      } catch {
+        setError('Error al eliminar el barbero')
+      }
       return
     }
-
     setBarberos((prev) => prev.filter((barbero) => barbero.id !== id))
     setHorarios((prev) => prev.filter((horario) => horario.barberoId !== id))
   }

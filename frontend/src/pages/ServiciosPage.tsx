@@ -35,7 +35,7 @@ function formFromServicio(servicio: Servicio): ServicioForm {
 }
 
 export function ServiciosPage() {
-  const { servicios, agregarServicio, actualizarServicio, eliminarServicio } = useServicios()
+  const { servicios, agregarServicio, actualizarServicio, eliminarServicio, toggleActivo } = useServicios()
   const [form, setForm] = useState<ServicioForm>(emptyForm)
   const [editingServicio, setEditingServicio] = useState<Servicio | null>(null)
   const [isFormOpen, setIsFormOpen] = useState(false)
@@ -124,13 +124,16 @@ export function ServiciosPage() {
             key={servicio.id}
           >
             <div className="flex items-center justify-between gap-4">
-              <span
-                className={`rounded-full px-3 py-1 text-sm font-bold ${
+              <button
+                className={`rounded-full px-3 py-1 text-sm font-bold transition hover:opacity-80 ${
                   (servicio.isActive ?? true) ? 'bg-[#064e2a] text-[#4ade80]' : 'bg-[#333333] text-[#a0a0a0]'
                 }`}
+                onClick={() => toggleActivo(servicio.id)}
+                title={(servicio.isActive ?? true) ? 'Clic para desactivar' : 'Clic para activar'}
+                type="button"
               >
-                ✓ {(servicio.isActive ?? true) ? 'Activo' : 'Inactivo'}
-              </span>
+                {(servicio.isActive ?? true) ? '✓ Activo' : '✕ Inactivo'}
+              </button>
               <Eye className="h-5 w-5 text-[#d1d5db]" />
             </div>
 
