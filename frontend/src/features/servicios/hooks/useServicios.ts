@@ -1,39 +1,67 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { MOCK_SERVICIOS } from '../../../mocks'
+import { apiClient } from '../../../shared/api/client'
 import type { Servicio } from '../../../types'
 
 const USE_MOCKS = import.meta.env.VITE_USE_MOCKS !== 'false'
 
 export function useServicios() {
   const [servicios, setServicios] = useState<Servicio[]>(USE_MOCKS ? MOCK_SERVICIOS : [])
-  const [loading] = useState(false)
-  const [error] = useState<string | null>(null)
+  const [loading, setLoading] = useState(!USE_MOCKS)
+  const [error, setError] = useState<string | null>(null)
 
-  function agregarServicio(servicio: Omit<Servicio, 'id'>) {
+  async function cargarServicios() {
+    try {
+      const { data } = await apiClient.get<{ servicios: Servicio[] }>('/servicios')
+      setServicios(data.servicios)
+    } catch {
+      setError('Error al cargar los servicios')
+    }
+  }
+
+  useEffect(() => {
+    if (USE_MOCKS) return
+    setLoading(true)
+    cargarServicios().finally(() => setLoading(false))
+  }, [])
+
+  async function agregarServicio(servicio: Omit<Servicio, 'id'>) {
     if (!USE_MOCKS) {
-      // TODO: POST /api/v1/servicios
+      try {
+        await apiClient.post('/servicios', servicio)
+        await cargarServicios()
+      } catch {
+        setError('Error al crear el servicio')
+      }
       return
     }
-
     const nuevo: Servicio = { ...servicio, id: `srv-${Date.now()}` }
     setServicios((prev) => [nuevo, ...prev])
   }
 
-  function actualizarServicio(id: string, datos: Partial<Servicio>) {
+  async function actualizarServicio(id: string, datos: Partial<Servicio>) {
     if (!USE_MOCKS) {
-      // TODO: PATCH /api/v1/servicios/:id
+      try {
+        await apiClient.patch(`/servicios/${id}`, datos)
+        await cargarServicios()
+      } catch {
+        setError('Error al actualizar el servicio')
+      }
       return
     }
-
     setServicios((prev) => prev.map((servicio) => (servicio.id === id ? { ...servicio, ...datos } : servicio)))
   }
 
-  function toggleActivo(id: string) {
+  async function toggleActivo(id: string) {
     if (!USE_MOCKS) {
-      // TODO: PATCH /api/v1/servicios/:id/toggle
+      try {
+        await apiClient.patch(`/servicios/${id}/toggle`)
+        await cargarServicios()
+      } catch {
+        setError('Error al cambiar el estado del servicio')
+      }
       return
     }
-
     setServicios((prev) =>
       prev.map((servicio) =>
         servicio.id === id ? { ...servicio, isActive: !(servicio.isActive ?? true) } : servicio,
@@ -41,12 +69,16 @@ export function useServicios() {
     )
   }
 
-  function eliminarServicio(id: string) {
+  async function eliminarServicio(id: string) {
     if (!USE_MOCKS) {
-      // TODO: DELETE /api/v1/servicios/:id
+      try {
+        await apiClient.delete(`/servicios/${id}`)
+        await cargarServicios()
+      } catch {
+        setError('Error al eliminar el servicio')
+      }
       return
     }
-
     const tieneTurnos = ['srv-1', 'srv-2'].includes(id)
     if (tieneTurnos) {
       throw new Error('No se puede eliminar un servicio con turnos asignados')

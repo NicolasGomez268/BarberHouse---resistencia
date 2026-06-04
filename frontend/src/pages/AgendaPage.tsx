@@ -5,7 +5,8 @@ import { ModalEditarTurnoFijo } from '../features/agenda/components/ModalEditarT
 import { ModalNuevoTurnoFijo } from '../features/agenda/components/ModalNuevoTurnoFijo'
 import { useTurnos } from '../features/agenda/hooks/useTurnos'
 import { getAvailableSlots } from '../features/agenda/lib/appointments'
-import { MOCK_BARBEROS, MOCK_HORARIOS, MOCK_SERVICIOS } from '../mocks'
+import { MOCK_BARBEROS, MOCK_HORARIOS } from '../mocks'
+import { useServicios } from '../features/servicios/hooks/useServicios'
 import type { MetodoPagoMock, Turno, TurnoFijo } from '../types'
 
 type CalendarDay = {
@@ -85,6 +86,8 @@ function isHistoricalTurno(turno: Turno, now: Date) {
 }
 
 export function AgendaPage() {
+  const { servicios } = useServicios()
+  const serviciosActivos = servicios.filter((s) => s.isActive ?? true)
   const {
     turnos,
     turnosFijos,
@@ -127,13 +130,13 @@ export function AgendaPage() {
   const [reemplazoFijoForm, setReemplazoFijoForm] = useState<ReemplazoFijoForm>({
     clienteNombre: '',
     clienteTelefono: '',
-    servicioId: MOCK_SERVICIOS[0]?.id ?? '',
+    servicioId: servicios[0]?.id ?? '',
     metodoPago: '',
   })
   const [turnoForm, setTurnoForm] = useState<TurnoForm>({
     sucursalId: '',
     barberoId: MOCK_BARBEROS[0]?.id ?? '',
-    servicioId: MOCK_SERVICIOS[0]?.id ?? '',
+    servicioId: servicios[0]?.id ?? '',
     clienteNombre: '',
     clienteTelefono: '',
     fecha: toDateKey(new Date()),
@@ -215,7 +218,7 @@ export function AgendaPage() {
     if (turnosListMode === 'cancelled') return 'Turnos cancelados'
     return 'Turnos con no asistencia'
   })()
-  const selectedService = MOCK_SERVICIOS.find((servicio) => servicio.id === turnoForm.servicioId)
+  const selectedService = servicios.find((servicio) => servicio.id === turnoForm.servicioId)
   const availableSlots = useMemo(() => {
     if (!turnoForm.barberoId || !turnoForm.fecha || !selectedService) return []
 
@@ -226,7 +229,7 @@ export function AgendaPage() {
       turnos,
       turnosFijos,
       barberos: MOCK_BARBEROS,
-      servicios: MOCK_SERVICIOS,
+      servicios: servicios,
       horarios: MOCK_HORARIOS,
     })
 
@@ -297,7 +300,7 @@ export function AgendaPage() {
   }
 
   function getServiceName(turno: Turno) {
-    return MOCK_SERVICIOS.find((servicio) => servicio.id === turno.servicioId)?.nombre ?? turno.servicioId
+    return servicios.find((servicio) => servicio.id === turno.servicioId)?.nombre ?? turno.servicioId
   }
 
   function getBarberName(turno: Turno) {
@@ -309,7 +312,7 @@ export function AgendaPage() {
   }
 
   function getServiceNameById(servicioId: string) {
-    return MOCK_SERVICIOS.find((servicio) => servicio.id === servicioId)?.nombre ?? servicioId
+    return servicios.find((servicio) => servicio.id === servicioId)?.nombre ?? servicioId
   }
 
   function getCompactDateLabel(dateKey: string) {
@@ -1021,7 +1024,7 @@ export function AgendaPage() {
                 onChange={(event) => setReemplazoFijoForm((current) => ({ ...current, servicioId: event.target.value }))}
                 value={reemplazoFijoForm.servicioId}
               >
-                {MOCK_SERVICIOS.map((servicio) => (
+                {serviciosActivos.map((servicio) => (
                   <option key={servicio.id} value={servicio.id}>
                     {servicio.nombre}
                   </option>
@@ -1184,7 +1187,7 @@ export function AgendaPage() {
                 onChange={(event) => setTurnoForm((current) => ({ ...current, servicioId: event.target.value }))}
                 value={turnoForm.servicioId}
               >
-                {MOCK_SERVICIOS.map((servicio) => (
+                {serviciosActivos.map((servicio) => (
                   <option key={servicio.id} value={servicio.id}>{servicio.nombre}</option>
                 ))}
               </select>
@@ -1268,7 +1271,7 @@ export function AgendaPage() {
         isOpen={isTurnoFijoModalOpen}
         onClose={() => setIsTurnoFijoModalOpen(false)}
         onGuardar={handleGuardarTurnoFijo}
-        servicios={MOCK_SERVICIOS}
+        servicios={servicios}
       />
 
       {turnoFijoSeleccionado ? (
@@ -1280,7 +1283,7 @@ export function AgendaPage() {
             setTurnoFijoSeleccionado(null)
           }}
           onGuardar={handleGuardarEdicion}
-          servicios={MOCK_SERVICIOS}
+          servicios={servicios}
           turnoFijo={turnoFijoSeleccionado}
         />
       ) : null}
