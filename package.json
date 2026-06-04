@@ -6,7 +6,7 @@
     "dev":"npm run build:functions && concurrently --kill-others-on-fail --names \"TSC,EMU,WEB\" --prefix-colors \"blue,cyan,magenta\" \"npm run watch --prefix functions\" \"npm run emulators:import\" \"npm run dev:frontend\"",
     "emulators": "firebase emulators:start --only auth,firestore,functions --export-on-exit .emulator-data",
     "emulators:import": "firebase emulators:start --only auth,firestore,functions --import .emulator-data --export-on-exit .emulator-data",
-    "emulators:export": "firebase emulators:export .emulator-data --only auth,firestore",
+    "emulators:export": "firebase emulators:export .emulator-data --only auth,firestore --force",
     "dev:frontend": "cd frontend && npm run dev",
     "build:functions": "npm run build --prefix functions",
     "build:frontend": "npm run build --prefix frontend"
