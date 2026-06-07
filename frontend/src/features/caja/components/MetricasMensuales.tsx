@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { MetricaBarbero, MetricaProducto, SucursalId } from '../../../types'
-import { useCaja } from '../hooks/useCaja'
+import { useMetricasMensuales } from '../hooks/useMetricasMensuales'
 
 type MetricasMensualesProps = {
   anio: number
@@ -29,23 +29,24 @@ function money(value: number) {
 }
 
 export function MetricasMensuales({ anio, mes, sucursalId }: MetricasMensualesProps) {
-  const { calcularMetricas } = useCaja()
-  const data = calcularMetricas(mes, anio, sucursalId)
+  const { data, loading, error } = useMetricasMensuales(mes, anio, sucursalId)
   const [paginaProductos, setPaginaProductos] = useState(1)
+
+  useEffect(() => { setPaginaProductos(1) }, [mes, anio])
+
+  if (loading) return <p className="rounded-lg bg-surface p-6 text-text-secondary">Cargando...</p>
+  if (error || !data) return <p className="rounded-lg bg-surface p-6 text-red-300">{error ?? 'Error al cargar los datos'}</p>
+
   const ventasProductos = data.productos.map((row: MetricaProducto) => [
     row.producto,
     String(row.unidades),
     money(row.total),
   ]) satisfies [string, string, string][]
-  const totalPaginasProductos = Math.ceil(ventasProductos.length / ITEMS_POR_PAGINA)
+  const totalPaginasProductos = Math.max(1, Math.ceil(ventasProductos.length / ITEMS_POR_PAGINA))
   const productosVisibles = ventasProductos.slice(
     (paginaProductos - 1) * ITEMS_POR_PAGINA,
     paginaProductos * ITEMS_POR_PAGINA,
   )
-
-  useEffect(() => {
-    setPaginaProductos(1)
-  }, [mes, anio])
 
   return (
     <div className="space-y-5">
@@ -67,11 +68,7 @@ export function MetricasMensuales({ anio, mes, sucursalId }: MetricasMensualesPr
         <SimpleTable
           columns={['Barbero', 'Turnos', 'Comision']}
           emptyText="No hay datos de barberos."
-          rows={data.barberos.map((row: MetricaBarbero) => [
-            row.barberoNombre,
-            String(row.turnos),
-            money(row.comision),
-          ])}
+          rows={data.barberos.map((row: MetricaBarbero) => [row.barberoNombre, String(row.turnos), money(row.comision)])}
           title="Comparativa entre barberos"
           widths={['auto', '70px', '100px']}
         />
@@ -116,9 +113,7 @@ function SimpleTable({ columns, emptyText, pagination, rows, title, widths }: Si
         <>
           <table className="mt-3 w-full table-fixed text-left text-sm">
             <colgroup>
-              {widths.map((width, index) => (
-                <col key={`${width}-${index}`} style={{ width }} />
-              ))}
+              {widths.map((width, index) => <col key={`${width}-${index}`} style={{ width }} />)}
             </colgroup>
             <thead className="text-text-secondary">
               <tr>
@@ -141,28 +136,11 @@ function SimpleTable({ columns, emptyText, pagination, rows, title, widths }: Si
               ))}
             </tbody>
           </table>
-
           {pagination ? (
             <div className="mt-4 flex items-center justify-between gap-2 text-xs text-text-secondary">
-              <button
-                className="rounded-lg bg-surface-deep px-3 py-2 font-bold text-text-primary disabled:cursor-not-allowed disabled:opacity-40"
-                disabled={pagination.page === 1}
-                onClick={pagination.onPrev}
-                type="button"
-              >
-                Anterior
-              </button>
-              <span className="rounded-lg bg-background px-3 py-2">
-                Pagina {pagination.page} de {pagination.totalPages}
-              </span>
-              <button
-                className="rounded-lg bg-surface-deep px-3 py-2 font-bold text-text-primary disabled:cursor-not-allowed disabled:opacity-40"
-                disabled={pagination.page === pagination.totalPages}
-                onClick={pagination.onNext}
-                type="button"
-              >
-                Siguiente
-              </button>
+              <button className="rounded-lg bg-surface-deep px-3 py-2 font-bold text-text-primary disabled:cursor-not-allowed disabled:opacity-40" disabled={pagination.page === 1} onClick={pagination.onPrev} type="button">Anterior</button>
+              <span className="rounded-lg bg-background px-3 py-2">Pagina {pagination.page} de {pagination.totalPages}</span>
+              <button className="rounded-lg bg-surface-deep px-3 py-2 font-bold text-text-primary disabled:cursor-not-allowed disabled:opacity-40" disabled={pagination.page === pagination.totalPages} onClick={pagination.onNext} type="button">Siguiente</button>
             </div>
           ) : null}
         </>

@@ -1,16 +1,16 @@
 import type { Producto, Venta } from '../types'
 
 export const MOCK_PRODUCTOS: Producto[] = [
-  { id: 'prod-1', nombre: 'Cera Mate Barbieri', variante: '100ml', categoria: 'Peinado', precioCosto: 15, precioVenta: 25, stockActual: 50, isActive: true },
-  { id: 'prod-2', nombre: 'Shampoo Anticaspa', variante: '400ml', categoria: 'Cuidado Capilar', precioCosto: 8, precioVenta: 14, stockActual: 30, isActive: true },
-  { id: 'prod-3', nombre: 'Acondicionador Revitalizante', variante: '300ml', categoria: 'Cuidado Capilar', precioCosto: 9, precioVenta: 16, stockActual: 25, isActive: true },
-  { id: 'prod-4', nombre: 'Navaja Premium', variante: undefined, categoria: 'Herramientas', precioCosto: 45, precioVenta: 80, stockActual: 10, isActive: true },
-  { id: 'prod-5', nombre: 'Crema de Afeitar Clásica', variante: '200ml', categoria: 'Afeitado', precioCosto: 12, precioVenta: 20, stockActual: 40, isActive: true },
-  { id: 'prod-6', nombre: 'Gel Fijador Extrafuerte', variante: '250ml', categoria: 'Peinado', precioCosto: 10, precioVenta: 18, stockActual: 35, isActive: true },
-  { id: 'prod-7', nombre: 'Aftershave Bálsamo', variante: '150ml', categoria: 'Afeitado', precioCosto: 18, precioVenta: 30, stockActual: 3, isActive: true },
-  { id: 'prod-8', nombre: 'Peine de Carbono', variante: undefined, categoria: 'Herramientas', precioCosto: 5, precioVenta: 9, stockActual: 60, isActive: true },
-  { id: 'prod-9', nombre: 'Mascarilla Hidratante', variante: '200ml', categoria: 'Cuidado Capilar', precioCosto: 20, precioVenta: 35, stockActual: 4, isActive: true },
-  { id: 'prod-10', nombre: 'Spray Texturizador', variante: '250ml', categoria: 'Peinado', precioCosto: 14, precioVenta: 24, stockActual: 0, isActive: false },
+  { id: 'prod-1', nombre: 'Cera Mate Barbieri', variante: '100ml', categoria: 'Peinado', precioCosto: 15, precioVenta: 25, stockActual: 50, activo: true },
+  { id: 'prod-2', nombre: 'Shampoo Anticaspa', variante: '400ml', categoria: 'Cuidado Capilar', precioCosto: 8, precioVenta: 14, stockActual: 30, activo: true },
+  { id: 'prod-3', nombre: 'Acondicionador Revitalizante', variante: '300ml', categoria: 'Cuidado Capilar', precioCosto: 9, precioVenta: 16, stockActual: 25, activo: true },
+  { id: 'prod-4', nombre: 'Navaja Premium', variante: undefined, categoria: 'Herramientas', precioCosto: 45, precioVenta: 80, stockActual: 10, activo: true },
+  { id: 'prod-5', nombre: 'Crema de Afeitar Clásica', variante: '200ml', categoria: 'Afeitado', precioCosto: 12, precioVenta: 20, stockActual: 40, activo: true },
+  { id: 'prod-6', nombre: 'Gel Fijador Extrafuerte', variante: '250ml', categoria: 'Peinado', precioCosto: 10, precioVenta: 18, stockActual: 35, activo: true },
+  { id: 'prod-7', nombre: 'Aftershave Bálsamo', variante: '150ml', categoria: 'Afeitado', precioCosto: 18, precioVenta: 30, stockActual: 3, activo: true },
+  { id: 'prod-8', nombre: 'Peine de Carbono', variante: undefined, categoria: 'Herramientas', precioCosto: 5, precioVenta: 9, stockActual: 60, activo: true },
+  { id: 'prod-9', nombre: 'Mascarilla Hidratante', variante: '200ml', categoria: 'Cuidado Capilar', precioCosto: 20, precioVenta: 35, stockActual: 4, activo: true },
+  { id: 'prod-10', nombre: 'Spray Texturizador', variante: '250ml', categoria: 'Peinado', precioCosto: 14, precioVenta: 24, stockActual: 0, activo: false },
 ]
 
 const hoy = new Date()

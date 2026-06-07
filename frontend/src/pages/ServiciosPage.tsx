@@ -30,7 +30,7 @@ function formFromServicio(servicio: Servicio): ServicioForm {
     descripcion: servicio.descripcion ?? '',
     precio: String(servicio.precio),
     duracionMinutos: String(servicio.duracionMinutos),
-    activo: servicio.isActive ?? true,
+    activo: servicio.activo ?? true,
   }
 }
 
@@ -75,7 +75,7 @@ export function ServiciosPage() {
       descripcion: form.descripcion.trim(),
       precio: Number.isFinite(precio) ? precio : 0,
       duracionMinutos: Number.isFinite(duracionMinutos) ? duracionMinutos : 0,
-      isActive: form.activo,
+      activo: form.activo,
     }
 
     if (editingServicio) {
@@ -126,13 +126,13 @@ export function ServiciosPage() {
             <div className="flex items-center justify-between gap-4">
               <button
                 className={`rounded-full px-3 py-1 text-sm font-bold transition hover:opacity-80 ${
-                  (servicio.isActive ?? true) ? 'bg-[#064e2a] text-[#4ade80]' : 'bg-[#333333] text-[#a0a0a0]'
+                  (servicio.activo ?? true) ? 'bg-[#064e2a] text-[#4ade80]' : 'bg-[#333333] text-[#a0a0a0]'
                 }`}
                 onClick={() => toggleActivo(servicio.id)}
-                title={(servicio.isActive ?? true) ? 'Clic para desactivar' : 'Clic para activar'}
+                title={(servicio.activo ?? true) ? 'Clic para desactivar' : 'Clic para activar'}
                 type="button"
               >
-                {(servicio.isActive ?? true) ? '✓ Activo' : '✕ Inactivo'}
+                {(servicio.activo ?? true) ? '✓ Activo' : '✕ Inactivo'}
               </button>
               <Eye className="h-5 w-5 text-[#d1d5db]" />
             </div>
@@ -257,7 +257,7 @@ export function ServiciosPage() {
                   onChange={(event) => setForm((currentForm) => ({ ...currentForm, activo: event.target.checked }))}
                   type="checkbox"
                 />
-                Servicio activo (visible para clientes)
+                Servicio activo
               </label>
             </div>
 

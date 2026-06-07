@@ -1,8 +1,7 @@
 export type ID = string
 
 export type Estado = 'PENDIENTE' | 'CONFIRMADO' | 'REALIZADO' | 'CANCELADO' | 'NO_ASISTIO' | 'AUSENTE_FIJO'
-export type MetodoPago = 'efectivo' | 'transferencia' | 'tarjeta'
-export type MetodoPagoMock = 'EFECTIVO' | 'TRANSFERENCIA' | 'TARJETA'
+export type MetodoPago = 'EFECTIVO' | 'TRANSFERENCIA' | 'TARJETA'
 export type SucursalId = 's1' | 's2'
 
 export type Usuario = {
@@ -24,14 +23,12 @@ export type Barbero = {
   nombre: string
   telefono?: string
   fotoUrl?: string
-  isActive?: boolean
-  isOwner?: boolean
+  activo?: boolean
+  esDueno?: boolean
   porcentajeCasa: number
   colorHex?: string
   sucursalId?: SucursalId
   fechaIngreso?: string
-  activo?: boolean
-  esDueno?: boolean
 }
 
 export type HorarioDia = {
@@ -53,7 +50,7 @@ export type Servicio = {
   descripcion?: string
   precio: number
   duracionMinutos: number
-  isActive?: boolean
+  activo?: boolean
 }
 
 export type Turno = {
@@ -68,7 +65,7 @@ export type Turno = {
   clienteNombre?: string
   clienteTelefono?: string
   estado: Estado | 'pendiente' | 'confirmado' | 'cancelado' | 'finalizado'
-  metodoPago?: MetodoPago | MetodoPagoMock
+  metodoPago?: MetodoPago
   esFijo?: boolean
   turnoFijoId?: string
   esReemplazoFijo?: boolean
@@ -90,9 +87,7 @@ export type TurnoFijo = {
   diaSemana?: number
   hora: string
   fechasAgendadas: string[]
-  activo: boolean
   proximaFecha: string
-  pausadoHasta?: string
 }
 
 export type Producto = {
@@ -103,10 +98,9 @@ export type Producto = {
   precioCosto?: number
   precioVenta?: number
   stockActual?: number
-  descripcion?: string
-  isActive?: boolean
-  stock?: number
   stockMinimo?: number
+  descripcion?: string
+  activo?: boolean
 }
 
 export type Venta = {
@@ -114,10 +108,11 @@ export type Venta = {
   sucursalId: SucursalId
   fecha: string
   productoId: string
+  productoNombre?: string
   cantidad: number
   precioUnitario: number
   total: number
-  metodoPago: MetodoPagoMock
+  metodoPago: MetodoPago
   vendedorId: string
   notas?: string
 }
@@ -128,40 +123,6 @@ export type MovimientoCaja = {
   monto: number
   tipo: 'ingreso' | 'egreso'
   fecha: string
-}
-
-export type CajaTurnoRealizado = {
-  id: ID
-  sucursalId: SucursalId
-  fecha: string
-  hora: string
-  cliente: string
-  servicio: string
-  barberoId: ID
-  barberoNombre: string
-  monto: number
-  metodoPago: MetodoPago
-  estado: 'realizado'
-  porcentajeCasa: number
-  isOwner: boolean
-}
-
-export type CajaVentaProducto = {
-  id: ID
-  sucursalId: SucursalId
-  fecha: string
-  hora: string
-  producto: string
-  cantidad: number
-  monto: number
-  metodoPago: MetodoPago
-}
-
-export type CajaMockData = {
-  pines: Record<string, SucursalId[]>
-  sucursales: Record<SucursalId, string>
-  turnos: CajaTurnoRealizado[]
-  ventas: CajaVentaProducto[]
 }
 
 export type MontosPorMetodo = Record<MetodoPago, number>

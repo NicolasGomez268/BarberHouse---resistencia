@@ -67,8 +67,6 @@ function getTurnoEnd(turno: Turno, servicios: Servicio[]) {
 }
 
 function isTurnoFijoBlockingDate(turnoFijo: TurnoFijo, date: string) {
-  if (!turnoFijo.activo) return false
-  if (turnoFijo.pausadoHasta && turnoFijo.pausadoHasta >= date) return false
   return turnoFijo.fechasAgendadas.includes(date)
 }
 
@@ -82,10 +80,6 @@ function hasReleasedFixedTurno(turnos: Turno[], turnoFijoId: string, date: strin
         turno.estado === 'NO_ASISTIO' ||
         turno.estado === 'cancelado'),
   )
-}
-
-function overlaps(newStart: number, newEnd: number, busyStart: number, busyEnd: number) {
-  return newStart < busyEnd && newEnd > busyStart
 }
 
 export function getAvailableSlots({
@@ -171,53 +165,3 @@ export function getAvailableSlots({
   return slots
 }
 
-export function createAppointment(
-  params: CreateAppointmentParams,
-  context: Omit<GetAvailableSlotsParams, 'barberId' | 'date' | 'serviceDuration'>,
-): Turno {
-  const servicio = context.servicios.find((current) => current.id === params.serviceId)
-  const barbero = context.barberos.find((current) => current.id === params.barberId)
-
-  if (!barbero) throw new Error('El barbero seleccionado no existe.')
-  if (!servicio) throw new Error('El servicio seleccionado no existe.')
-
-  const startMinutes = timeToMinutes(params.startTime)
-  const endMinutes = startMinutes + servicio.duracionMinutos
-  const slots = getAvailableSlots({
-    ...context,
-    barberId: params.barberId,
-    date: params.date,
-    serviceDuration: servicio.duracionMinutos,
-  })
-  const selectedSlot = slots.find((slot) => slot.start === params.startTime)
-
-  if (!selectedSlot) throw new Error('El horario seleccionado ya no está disponible.')
-
-  const hasOverlap = context.turnos
-    .filter(
-      (turno) =>
-        turno.barberoId === params.barberId &&
-        turno.fecha === params.date &&
-        turno.hora &&
-        isBlockingTurno(turno),
-    )
-    .some((turno) => overlaps(startMinutes, endMinutes, timeToMinutes(turno.hora ?? '00:00'), timeToMinutes(getTurnoEnd(turno, context.servicios))))
-
-  if (hasOverlap) throw new Error('El turno se superpone con otro turno del barbero.')
-
-  return {
-    id: `t-${Date.now()}`,
-    clientId: params.clientId,
-    sucursalId: params.sucursalId ?? barbero.sucursalId,
-    fecha: params.date,
-    hora: params.startTime,
-    horaFin: minutesToTime(endMinutes),
-    barberoId: params.barberId,
-    servicioId: params.serviceId,
-    clienteNombre: params.clienteNombre,
-    clienteTelefono: params.clienteTelefono,
-    estado: 'PENDIENTE',
-    esFijo: false,
-    creadoPor: params.barberId,
-  }
-}

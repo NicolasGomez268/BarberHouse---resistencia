@@ -4,7 +4,8 @@ import { LiquidacionSemanal } from '../features/caja/components/LiquidacionSeman
 import { MetricasMensuales } from '../features/caja/components/MetricasMensuales'
 import { PinModal } from '../features/caja/components/PinModal'
 import { useCaja } from '../features/caja/hooks/useCaja'
-import type { CajaDiariaResumen, SucursalId } from '../types'
+import { useCajaDiaria } from '../features/caja/hooks/useCajaDiaria'
+import type { SucursalId } from '../types'
 
 type CajaTab = 'diaria' | 'liquidacion' | 'metricas'
 
@@ -29,7 +30,7 @@ function money(value: number) {
 }
 
 export function CajaPage() {
-  const { calcularCajaDiaria, pinValido, sucursales, sucursalesDesbloqueadas, validarPin } = useCaja()
+  const { pinValido, sucursales, sucursalesDesbloqueadas, validarPin } = useCaja()
   const [activeTab, setActiveTab] = useState<CajaTab>('diaria')
   const [pinError, setPinError] = useState<string | null>(null)
   const [fecha, setFecha] = useState(todayKey())
@@ -41,16 +42,13 @@ export function CajaPage() {
 
   useEffect(() => {
     setSucursalExpandida((current) => {
-      if (current && sucursalesDesbloqueadas.includes(current)) {
-        return current
-      }
-
+      if (current && sucursalesDesbloqueadas.includes(current)) return current
       return sucursalesDesbloqueadas[0] ?? null
     })
   }, [sucursalesDesbloqueadas])
 
-  function handlePinSubmit(pin: string) {
-    const error = validarPin(pin)
+  async function handlePinSubmit(pin: string): Promise<string | null> {
+    const error = await validarPin(pin)
     setPinError(error)
     return error
   }
@@ -103,9 +101,6 @@ export function CajaPage() {
         <div className="mt-6 flex flex-col gap-4 rounded-lg bg-surface p-4 sm:flex-row sm:items-end">
           <DateInput label="Desde" onChange={setDesde} value={desde} />
           <DateInput label="Hasta" onChange={setHasta} value={hasta} />
-          <button className="rounded-lg bg-accent px-6 py-3 font-bold text-background" type="button">
-            Actualizar
-          </button>
         </div>
       ) : null}
 
@@ -126,7 +121,7 @@ export function CajaPage() {
             </select>
           </label>
           <label className="font-bold text-text-secondary">
-            Anio
+            Año
             <input
               className="mt-2 w-full rounded-lg border border-accent/40 bg-background px-4 py-3 text-text-primary outline-none focus:border-accent"
               onChange={(event) => setAnio(Number(event.target.value))}
@@ -143,12 +138,11 @@ export function CajaPage() {
             <article className="rounded-2xl border border-white/10 bg-background" key={sucursalId}>
               {activeTab === 'diaria' ? (
                 <CajaDiariaSucursalCard
-                  data={calcularCajaDiaria(fecha, sucursalId)}
                   expanded={sucursalExpandida === sucursalId}
                   fecha={fecha}
                   name={sucursales[sucursalId]}
-                  onToggle={() => toggleSucursal(sucursalId)}
                   sucursalId={sucursalId}
+                  onToggle={() => toggleSucursal(sucursalId)}
                 />
               ) : (
                 <>
@@ -172,22 +166,19 @@ export function CajaPage() {
 }
 
 function CajaDiariaSucursalCard({
-  data,
   expanded,
   fecha,
   name,
   onToggle,
   sucursalId,
 }: {
-  data: CajaDiariaResumen
   expanded: boolean
   fecha: string
   name: string
   onToggle: () => void
   sucursalId: SucursalId
 }) {
-  const totalServicios =
-    data.serviciosPorMetodo.efectivo + data.serviciosPorMetodo.transferencia + data.serviciosPorMetodo.tarjeta
+  const { data, loading, error } = useCajaDiaria(fecha, sucursalId)
 
   return (
     <div className="rounded-2xl">
@@ -200,33 +191,35 @@ function CajaDiariaSucursalCard({
           {name}
           <span className="text-accent">{expanded ? '^' : 'v'}</span>
         </span>
-        <span className="truncate text-sm text-text-secondary">
-          {data.turnosRealizados} turnos - {money(totalServicios)} servicios - {money(data.ventasProductos)} productos
-        </span>
+        {loading || !data ? (
+          <span className="text-sm text-text-secondary">Cargando...</span>
+        ) : (
+          <span className="truncate text-sm text-text-secondary">
+            {data.turnosRealizados} turnos · {money(data.serviciosPorMetodo.EFECTIVO + data.serviciosPorMetodo.TRANSFERENCIA + data.serviciosPorMetodo.TARJETA)} servicios · {money(data.ventasProductos)} productos
+          </span>
+        )}
         <span className="text-left lg:text-right">
           <span className="block text-xs font-bold uppercase tracking-wide text-text-secondary">Total del dia</span>
-          <strong className="text-2xl text-accent">{money(data.totalDia)}</strong>
+          <strong className="text-2xl text-accent">{loading || !data ? '...' : money(data.totalDia)}</strong>
         </span>
       </button>
 
-      <div
-        className={`overflow-hidden transition-all duration-300 ${
-          expanded ? 'max-h-[5000px] opacity-100' : 'max-h-0 opacity-0'
-        }`}
-      >
+      <div className={`overflow-hidden transition-all duration-300 ${expanded ? 'max-h-[5000px] opacity-100' : 'max-h-0 opacity-0'}`}>
         <div className="border-t border-white/10 p-4">
-          <CajaDiaria fecha={fecha} sucursalId={sucursalId} />
+          {loading ? (
+            <p className="py-6 text-center text-text-secondary">Cargando...</p>
+          ) : error || !data ? (
+            <p className="py-6 text-center text-red-300">{error ?? 'Error al cargar los datos'}</p>
+          ) : (
+            <CajaDiaria data={data} />
+          )}
         </div>
       </div>
     </div>
   )
 }
 
-type DateInputProps = {
-  label: string
-  onChange: (value: string) => void
-  value: string
-}
+type DateInputProps = { label: string; onChange: (value: string) => void; value: string }
 
 function DateInput({ label, onChange, value }: DateInputProps) {
   return (

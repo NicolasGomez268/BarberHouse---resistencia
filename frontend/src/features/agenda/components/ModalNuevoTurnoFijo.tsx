@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
-import type { Barbero, Servicio, SucursalId, TurnoFijo } from '../../../types'
+import type { Barbero, HorarioSemanal, Servicio, SucursalId, Turno, TurnoFijo } from '../../../types'
+import { getAvailableSlots } from '../lib/appointments'
 
 type Props = {
   isOpen: boolean
@@ -8,6 +9,10 @@ type Props = {
   onGuardar: (turnoFijo: Omit<TurnoFijo, 'id' | 'proximaFecha'>) => void
   barberos: Barbero[]
   servicios: Servicio[]
+  externalError?: string | null
+  horarios: HorarioSemanal[]
+  turnos: Turno[]
+  turnosFijos: TurnoFijo[]
 }
 
 type FormState = {
@@ -19,7 +24,6 @@ type FormState = {
   sucursalId: SucursalId
   fechaInicio: string
   cadaDias: number | ''
-  activo: boolean
 }
 
 const PRESETS = [
@@ -33,7 +37,6 @@ function toDateKey(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 }
 
-// Genera fechas desde fechaInicio cada cadaDias días durante 3 meses
 function generarFechas(fechaInicio: string, cadaDias: number, mesesAdelante = 3): string[] {
   const fechas: string[] = []
   const inicio = new Date(`${fechaInicio}T00:00:00`)
@@ -47,9 +50,9 @@ function generarFechas(fechaInicio: string, cadaDias: number, mesesAdelante = 3)
   return fechas
 }
 
-export function ModalNuevoTurnoFijo({ isOpen, onClose, onGuardar, barberos, servicios }: Props) {
-  const activeBarberos = barberos.filter((b) => b.isActive ?? b.activo ?? false)
-  const activeServicios = servicios.filter((s) => s.isActive ?? true)
+export function ModalNuevoTurnoFijo({ isOpen, onClose, onGuardar, barberos, servicios, externalError, horarios, turnos, turnosFijos }: Props) {
+  const activeBarberos = barberos.filter((b) => b.activo ?? false)
+  const activeServicios = servicios.filter((s) => s.activo ?? true)
   const hoy = toDateKey(new Date())
 
   const initialForm: FormState = {
@@ -57,11 +60,10 @@ export function ModalNuevoTurnoFijo({ isOpen, onClose, onGuardar, barberos, serv
     clienteTelefono: '',
     barberoId: activeBarberos[0]?.id ?? '',
     servicioId: activeServicios[0]?.id ?? '',
-    hora: '10:00',
+    hora: '',
     sucursalId: 's1',
     fechaInicio: hoy,
     cadaDias: '',
-    activo: true,
   }
 
   const [form, setForm] = useState<FormState>(initialForm)
@@ -72,6 +74,34 @@ export function ModalNuevoTurnoFijo({ isOpen, onClose, onGuardar, barberos, serv
     setForm({ ...initialForm, barberoId: activeBarberos[0]?.id ?? '', servicioId: activeServicios[0]?.id ?? '' })
     setError(null)
   }, [isOpen])
+
+  const selectedService = useMemo(
+    () => servicios.find((s) => s.id === form.servicioId),
+    [servicios, form.servicioId],
+  )
+
+  const availableSlots = useMemo(() => {
+    if (!form.barberoId || !form.fechaInicio || !selectedService) return []
+    return getAvailableSlots({
+      barberId: form.barberoId,
+      date: form.fechaInicio,
+      serviceDuration: selectedService.duracionMinutos,
+      turnos,
+      turnosFijos,
+      barberos,
+      servicios,
+      horarios,
+    })
+  }, [form.barberoId, form.fechaInicio, selectedService, turnos, turnosFijos, barberos, servicios, horarios])
+
+  useEffect(() => {
+    if (!isOpen) return
+    setForm((current) => {
+      const stillAvailable = availableSlots.some((slot) => slot.start === current.hora)
+      if (stillAvailable) return current
+      return { ...current, hora: availableSlots[0]?.start ?? '' }
+    })
+  }, [availableSlots, isOpen])
 
   if (!isOpen) return null
 
@@ -90,7 +120,7 @@ export function ModalNuevoTurnoFijo({ isOpen, onClose, onGuardar, barberos, serv
     if (!clienteNombre) { setError('El nombre del cliente es obligatorio.'); return }
     if (!form.barberoId) { setError('Seleccioná un barbero.'); return }
     if (!form.servicioId) { setError('Seleccioná un servicio.'); return }
-    if (!form.hora) { setError('Seleccioná una hora.'); return }
+    if (!form.hora) { setError('Seleccioná un horario disponible.'); return }
     if (!form.fechaInicio) { setError('Seleccioná la fecha del primer turno.'); return }
     if (form.cadaDias === '' || form.cadaDias < 1) { setError('Indicá cada cuántos días se repite.'); return }
     if (fechasGeneradas.length === 0) { setError('No se generaron fechas válidas.'); return }
@@ -104,7 +134,6 @@ export function ModalNuevoTurnoFijo({ isOpen, onClose, onGuardar, barberos, serv
       diaSemana,
       hora: form.hora,
       fechasAgendadas: [...fechasGeneradas].sort(),
-      activo: form.activo,
     })
   }
 
@@ -157,22 +186,14 @@ export function ModalNuevoTurnoFijo({ isOpen, onClose, onGuardar, barberos, serv
             </select>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <input
-              className="w-full rounded-lg border border-[#3f3f3f] bg-[#111111] px-4 py-3 text-white"
-              onChange={(e) => setForm((f) => ({ ...f, hora: e.target.value }))}
-              type="time"
-              value={form.hora}
-            />
-            <select
-              className="w-full rounded-lg border border-[#3f3f3f] bg-[#111111] px-4 py-3 text-white"
-              onChange={(e) => setForm((f) => ({ ...f, sucursalId: e.target.value as SucursalId }))}
-              value={form.sucursalId}
-            >
-              <option value="s1">Sucursal 1</option>
-              <option value="s2">Sucursal 2</option>
-            </select>
-          </div>
+          <select
+            className="w-full rounded-lg border border-[#3f3f3f] bg-[#111111] px-4 py-3 text-white"
+            onChange={(e) => setForm((f) => ({ ...f, sucursalId: e.target.value as SucursalId }))}
+            value={form.sucursalId}
+          >
+            <option value="s1">Sucursal 1</option>
+            <option value="s2">Sucursal 2</option>
+          </select>
 
           {/* Fecha de inicio */}
           <div>
@@ -186,6 +207,36 @@ export function ModalNuevoTurnoFijo({ isOpen, onClose, onGuardar, barberos, serv
               type="date"
               value={form.fechaInicio}
             />
+          </div>
+
+          {/* Selector de horario */}
+          <div>
+            <label className="mb-2 block text-xs font-bold uppercase tracking-widest text-[#a0a0a0]">
+              Horario disponible
+              {form.hora ? <span className="ml-2 rounded-full bg-[#f5c518] px-2 py-0.5 text-black normal-case">{form.hora}</span> : null}
+            </label>
+            {!form.barberoId || !form.fechaInicio || !selectedService ? (
+              <p className="text-sm text-[#a0a0a0]">Seleccioná barbero, servicio y fecha para ver los horarios disponibles.</p>
+            ) : availableSlots.length === 0 ? (
+              <p className="text-sm text-[#a0a0a0]">Sin horarios disponibles para este barbero en la fecha seleccionada. Verificá que tenga horario configurado para ese día.</p>
+            ) : (
+              <div className="grid max-h-44 grid-cols-3 gap-2 overflow-y-auto sm:grid-cols-4">
+                {availableSlots.map((slot) => (
+                  <button
+                    className={`rounded-lg border px-3 py-2 text-sm font-bold transition ${
+                      form.hora === slot.start
+                        ? 'border-[#f5c518] bg-[#1a1700] text-[#f5c518]'
+                        : 'border-[#2f2f2f] bg-[#111111] text-white hover:border-[#f5c518]/70'
+                    }`}
+                    key={slot.start}
+                    onClick={() => setForm((f) => ({ ...f, hora: slot.start }))}
+                    type="button"
+                  >
+                    {slot.start}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Frecuencia */}
@@ -237,16 +288,7 @@ export function ModalNuevoTurnoFijo({ isOpen, onClose, onGuardar, barberos, serv
             </div>
           ) : null}
 
-          <label className="flex items-center gap-3 text-sm font-bold text-white">
-            <input
-              checked={form.activo}
-              className="h-4 w-4 accent-[#f5c518]"
-              onChange={(e) => setForm((f) => ({ ...f, activo: e.target.checked }))}
-              type="checkbox"
-            />
-            Activar turno fijo inmediatamente
-          </label>
-
+          {externalError ? <p className="text-sm font-bold text-red-300">{externalError}</p> : null}
           {error ? <p className="text-sm font-bold text-red-300">{error}</p> : null}
         </div>
 
@@ -256,7 +298,7 @@ export function ModalNuevoTurnoFijo({ isOpen, onClose, onGuardar, barberos, serv
           </button>
           <button
             className="rounded-lg bg-[#f5c518] px-4 py-3 font-bold text-black disabled:opacity-50"
-            disabled={fechasGeneradas.length === 0}
+            disabled={fechasGeneradas.length === 0 || !form.hora}
             type="submit"
           >
             Guardar Turno Fijo

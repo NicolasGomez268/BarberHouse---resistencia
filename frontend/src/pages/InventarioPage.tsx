@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react'
 import type React from 'react'
 import type { FormEvent } from 'react'
 import { useInventario } from '../features/inventario/hooks/useInventario'
-import type { MetodoPagoMock, Producto, Venta } from '../types'
+import type { MetodoPago, Producto, Venta } from '../types'
 
 type StockTab = 'catalogo' | 'venta' | 'historial'
 
@@ -14,16 +14,29 @@ type ProductForm = {
   costo: string
   venta: string
   stock: string
+  stockMinimo: string
   activo: boolean
   descripcion: string
 }
 
-type SaleFormState = {
+type CartItem = {
   productoId: string
-  cantidad: string
-  metodoPago: MetodoPagoMock
+  cantidad: number
+}
+
+type SaleFormState = {
+  items: CartItem[]
+  metodoPago: MetodoPago
   vendedorId: string
   notas: string
+}
+
+type StockModalState = {
+  productId: string
+  productName: string
+  currentStock: number
+  op: 'agregar' | 'restar' | 'establecer'
+  cantidad: string
 }
 
 const productsPerPage = 6
@@ -34,6 +47,7 @@ const emptyForm: ProductForm = {
   costo: '0',
   venta: '0',
   stock: '0',
+  stockMinimo: '0',
   activo: true,
   descripcion: '',
 }
@@ -50,13 +64,23 @@ function productToForm(product: Producto): ProductForm {
     costo: String(product.precioCosto ?? 0),
     venta: String(product.precioVenta ?? 0),
     stock: String(product.stockActual ?? 0),
-    activo: product.isActive ?? true,
+    stockMinimo: String(product.stockMinimo ?? 0),
+    activo: product.activo ?? true,
     descripcion: product.descripcion ?? '',
   }
 }
 
 export function InventarioPage() {
-  const { productos, ventas, agregarProducto, actualizarProducto, ajustarStock, registrarVenta } = useInventario()
+  const {
+    productos,
+    ventas,
+    agregarProducto,
+    actualizarProducto,
+    eliminarProducto,
+    ajustarStock,
+    registrarVentaMultiple,
+    cargarVentas,
+  } = useInventario()
   const [activeTab, setActiveTab] = useState<StockTab>('catalogo')
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('Todas')
@@ -66,15 +90,17 @@ export function InventarioPage() {
   const [editingProduct, setEditingProduct] = useState<Producto | null>(null)
   const [form, setForm] = useState<ProductForm>(emptyForm)
   const [sale, setSale] = useState<SaleFormState>({
-    productoId: productos[0]?.id ?? '',
-    cantidad: '1',
+    items: [],
     metodoPago: 'EFECTIVO',
     vendedorId: '',
     notas: '',
   })
   const [saleError, setSaleError] = useState<string | null>(null)
+  const [saleLoading, setSaleLoading] = useState(false)
+  const [saleSuccess, setSaleSuccess] = useState(false)
+  const [stockModal, setStockModal] = useState<StockModalState | null>(null)
   const [historyDate, setHistoryDate] = useState(new Date().toISOString().slice(0, 10))
-  const [historyPayment, setHistoryPayment] = useState<MetodoPagoMock | 'TODOS'>('TODOS')
+  const [historyPayment, setHistoryPayment] = useState<MetodoPago | 'TODOS'>('TODOS')
 
   const filteredProducts = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase()
@@ -86,8 +112,8 @@ export function InventarioPage() {
       const matchesCategory = categoryFilter === 'Todas' || product.categoria === categoryFilter
       const matchesStatus =
         statusFilter === 'Todos' ||
-        (statusFilter === 'Activos' && (product.isActive ?? true)) ||
-        (statusFilter === 'Inactivos' && !(product.isActive ?? true))
+        (statusFilter === 'Activos' && (product.activo ?? true)) ||
+        (statusFilter === 'Inactivos' && !(product.activo ?? true))
       return matchesSearch && matchesCategory && matchesStatus
     })
   }, [categoryFilter, productos, search, statusFilter])
@@ -97,7 +123,7 @@ export function InventarioPage() {
   const categories = Array.from(new Set(productos.map((product) => product.categoria ?? '').filter(Boolean)))
   const totalProducts = productos.length
   const outOfStock = productos.filter((product) => (product.stockActual ?? 0) === 0).length
-  const activeProducts = productos.filter((product) => product.isActive ?? true).length
+  const activeProducts = productos.filter((product) => product.activo ?? true).length
   const isEditing = editingProduct !== null
   const margin = Number(form.venta) - Number(form.costo)
   const historySales = ventas.filter(
@@ -127,15 +153,14 @@ export function InventarioPage() {
     const payload = {
       nombre: form.nombre.trim(),
       variante: form.variante.trim() || undefined,
-      categoria: form.categoria.trim() || 'Sin categoría',
+      categoria: form.categoria.trim() || 'sin categoría',
       precioCosto: Number(form.costo) || 0,
       precioVenta: Number(form.venta) || 0,
       stockActual: Number(form.stock) || 0,
-      stock: Number(form.stock) || 0,
-      isActive: form.activo,
+      stockMinimo: Number(form.stockMinimo) || 0,
+      activo: form.activo,
       descripcion: form.descripcion.trim() || undefined,
     }
-
     if (!payload.nombre) return
     if (editingProduct) {
       actualizarProducto(editingProduct.id, payload)
@@ -146,32 +171,54 @@ export function InventarioPage() {
     closeProductModal()
   }
 
-  function submitSale(event: FormEvent<HTMLFormElement>) {
+  async function submitSale(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const product = productos.find((item) => item.id === sale.productoId)
-    const cantidad = Number(sale.cantidad)
-    if (!product || cantidad <= 0) return
-    if ((product.stockActual ?? 0) < cantidad) {
-      setSaleError('Stock insuficiente')
-      return
+    if (sale.items.length === 0) return
+
+    for (const item of sale.items) {
+      const product = productos.find((p) => p.id === item.productoId)
+      if (!product) return
+      if ((product.stockActual ?? 0) < item.cantidad) {
+        setSaleError(`Stock insuficiente para ${product.nombre}`)
+        return
+      }
     }
 
+    setSaleLoading(true)
+    setSaleError(null)
+    setSaleSuccess(false)
     try {
-      registrarVenta({
+      await registrarVentaMultiple(sale.items, {
         sucursalId: 's1',
-        fecha: new Date().toISOString().slice(0, 10),
-        productoId: product.id,
-        cantidad,
-        precioUnitario: product.precioVenta ?? 0,
-        total: (product.precioVenta ?? 0) * cantidad,
         metodoPago: sale.metodoPago,
         vendedorId: sale.vendedorId || 'barbero-1',
         notas: sale.notas || undefined,
       })
-      setSaleError(null)
+      setSaleSuccess(true)
+      setSale((current) => ({ ...current, items: [], notas: '' }))
     } catch (error) {
       setSaleError(error instanceof Error ? error.message : 'No se pudo registrar la venta')
+    } finally {
+      setSaleLoading(false)
     }
+  }
+
+  function openStockModal(product: Producto) {
+    setStockModal({
+      productId: product.id,
+      productName: `${product.nombre}${product.variante ? ` — ${product.variante}` : ''}`,
+      currentStock: product.stockActual ?? 0,
+      op: 'agregar',
+      cantidad: '1',
+    })
+  }
+
+  async function confirmStockAdjust() {
+    if (!stockModal) return
+    const cantidad = Number(stockModal.cantidad)
+    if (!cantidad || cantidad <= 0) return
+    await ajustarStock(stockModal.productId, cantidad, stockModal.op)
+    setStockModal(null)
   }
 
   return (
@@ -237,7 +284,14 @@ export function InventarioPage() {
               </thead>
               <tbody>
                 {pageProducts.map((product) => (
-                  <ProductRow key={product.id} onDelete={(id) => actualizarProducto(id, { isActive: false })} onEdit={openEditModal} onStock={(id) => ajustarStock(id, 1, 'agregar')} product={product} />
+                  <ProductRow
+                    key={product.id}
+                    onDelete={(id) => eliminarProducto(id)}
+                    onEdit={openEditModal}
+                    onStock={openStockModal}
+                    onToggle={(id) => actualizarProducto(id, { activo: !(product.activo ?? true) })}
+                    product={product}
+                  />
                 ))}
               </tbody>
             </table>
@@ -245,7 +299,14 @@ export function InventarioPage() {
 
           <section className="mt-5 grid gap-4 xl:hidden">
             {pageProducts.map((product) => (
-              <ProductCard key={product.id} onDelete={(id) => actualizarProducto(id, { isActive: false })} onEdit={openEditModal} onStock={(id) => ajustarStock(id, 1, 'agregar')} product={product} />
+              <ProductCard
+                key={product.id}
+                onDelete={(id) => eliminarProducto(id)}
+                onEdit={openEditModal}
+                onStock={openStockModal}
+                onToggle={(id) => actualizarProducto(id, { activo: !(product.activo ?? true) })}
+                product={product}
+              />
             ))}
           </section>
 
@@ -253,8 +314,29 @@ export function InventarioPage() {
         </>
       ) : null}
 
-      {activeTab === 'venta' ? <SaleForm products={productos.filter((product) => (product.isActive ?? true) && (product.stockActual ?? 0) > 0)} sale={sale} saleError={saleError} setSale={setSale} onSubmit={submitSale} /> : null}
-      {activeTab === 'historial' ? <SalesHistory historyDate={historyDate} historyPayment={historyPayment} products={productos} sales={historySales} setHistoryDate={setHistoryDate} setHistoryPayment={setHistoryPayment} /> : null}
+      {activeTab === 'venta' ? (
+        <SaleForm
+          isLoading={saleLoading}
+          products={productos.filter((product) => (product.activo ?? true) && (product.stockActual ?? 0) > 0)}
+          sale={sale}
+          saleError={saleError}
+          saleSuccess={saleSuccess}
+          setSale={setSale}
+          onSubmit={submitSale}
+        />
+      ) : null}
+
+      {activeTab === 'historial' ? (
+        <SalesHistory
+          historyDate={historyDate}
+          historyPayment={historyPayment}
+          products={productos}
+          sales={historySales}
+          setHistoryDate={setHistoryDate}
+          setHistoryPayment={setHistoryPayment}
+          onRefresh={() => cargarVentas(historyDate)}
+        />
+      ) : null}
 
       {isProductModalOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
@@ -270,7 +352,7 @@ export function InventarioPage() {
               </label>
               <div className="grid gap-4 md:grid-cols-2">
                 <FormInput label="Variante" optional onChange={(value) => setForm((current) => ({ ...current, variante: value }))} placeholder="Ej: 250ml, S, Azul, 1kg" value={form.variante} />
-                <FormInput label="Categoría" optional onChange={(value) => setForm((current) => ({ ...current, categoria: value }))} placeholder="Ej: Capilar, Ropa, Accesorios" value={form.categoria} />
+                <FormInput label="Categoría" optional onChange={(value) => setForm((current) => ({ ...current, categoria: value }))} placeholder="Ej: capilar, ropa, accesorios" value={form.categoria} />
                 <FormInput label="Precio de Costo" onChange={(value) => setForm((current) => ({ ...current, costo: value }))} type="number" value={form.costo} />
                 <label className="block">
                   <span className="font-bold">Precio de Venta *</span>
@@ -278,6 +360,7 @@ export function InventarioPage() {
                   {isEditing ? <span className="mt-1 block text-sm text-[#22c55e]">Margen: {formatCurrency(margin)}</span> : null}
                 </label>
                 <FormInput label="Stock inicial" onChange={(value) => setForm((current) => ({ ...current, stock: value }))} type="number" value={form.stock} />
+                <FormInput label="Stock mínimo" optional onChange={(value) => setForm((current) => ({ ...current, stockMinimo: value }))} placeholder="Alerta cuando baje de este valor" type="number" value={form.stockMinimo} />
                 <label className="flex items-center gap-3 self-end pb-3 font-bold text-[#d1d5db]">
                   <input checked={form.activo} className="h-5 w-5 accent-[#f5c518]" onChange={(event) => setForm((current) => ({ ...current, activo: event.target.checked }))} type="checkbox" />
                   Activo (disponible para venta)
@@ -295,6 +378,45 @@ export function InventarioPage() {
           </form>
         </div>
       ) : null}
+
+      {stockModal ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-lg border border-[#6b5600] bg-[#0b0b0d] p-6 text-white shadow-2xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-xl font-bold">Ajustar Stock</h2>
+              <button className="text-[#d1d5db] hover:text-white" onClick={() => setStockModal(null)} type="button"><X className="h-6 w-6" /></button>
+            </div>
+            <p className="mb-1 text-sm text-[#a0a0a0]">{stockModal.productName}</p>
+            <p className="mb-5 text-sm text-[#a0a0a0]">Stock actual: <span className="font-bold text-white">{stockModal.currentStock} u.</span></p>
+            <div className="mb-4 grid grid-cols-3 gap-2">
+              {(['agregar', 'restar', 'establecer'] as const).map((op) => (
+                <button
+                  className={`rounded-lg border px-3 py-2 text-sm font-bold capitalize ${stockModal.op === op ? 'border-[#f5c518] bg-[#f5c518]/10 text-[#f5c518]' : 'border-[#2f2f2f] text-[#a0a0a0]'}`}
+                  key={op}
+                  onClick={() => setStockModal((current) => current ? { ...current, op } : null)}
+                  type="button"
+                >
+                  {op === 'agregar' ? '+ Agregar' : op === 'restar' ? '- Restar' : '= Fijar'}
+                </button>
+              ))}
+            </div>
+            <label className="block">
+              <span className="font-bold text-sm">Cantidad</span>
+              <input
+                className="mt-2 w-full rounded-lg border border-[#3f3f3f] bg-[#111111] px-4 py-3 text-white outline-none focus:border-[#f5c518]"
+                min="1"
+                onChange={(event) => setStockModal((current) => current ? { ...current, cantidad: event.target.value } : null)}
+                type="number"
+                value={stockModal.cantidad}
+              />
+            </label>
+            <div className="mt-5 flex gap-3">
+              <button className="flex-1 rounded-lg bg-[#3f3f3f] py-3 text-white hover:bg-[#6b6b6b]" onClick={() => setStockModal(null)} type="button">Cancelar</button>
+              <button className="flex-1 rounded-lg bg-[#e5c04f] py-3 font-bold text-[#050505] hover:bg-[#f5c518]" onClick={confirmStockAdjust} type="button">Confirmar</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -308,51 +430,59 @@ function SummaryCard({ accent, label, value }: SummaryCardProps) {
 type ProductActionsProps = {
   onDelete: (productId: string) => void
   onEdit: (product: Producto) => void
-  onStock: (productId: string) => void
+  onStock: (product: Producto) => void
+  onToggle: (productId: string) => void
   product: Producto
 }
 
-function ProductActions({ onDelete, onEdit, onStock, product }: ProductActionsProps) {
+function ProductActions({ onDelete, onEdit, onStock, onToggle, product }: ProductActionsProps) {
   return (
     <div className="flex flex-wrap gap-2">
       <button className="rounded bg-[#2a2a2a] px-4 py-3 text-sm font-bold text-white hover:bg-[#3a3a3a]" onClick={() => onEdit(product)} type="button">Editar</button>
-      <button className="rounded bg-[#16a34a] px-4 py-3 text-sm font-bold text-white hover:bg-[#15803d]" onClick={() => onStock(product.id)} type="button">Stock</button>
-      <button className="rounded bg-[#3f3f3f] px-4 py-3 text-sm text-white hover:bg-[#6b6b6b]" type="button">{(product.isActive ?? true) ? 'Desactivar' : 'Activar'}</button>
+      <button className="rounded bg-[#16a34a] px-4 py-3 text-sm font-bold text-white hover:bg-[#15803d]" onClick={() => onStock(product)} type="button">Stock</button>
+      <button className="rounded bg-[#3f3f3f] px-4 py-3 text-sm text-white hover:bg-[#6b6b6b]" onClick={() => onToggle(product.id)} type="button">{(product.activo ?? true) ? 'Desactivar' : 'Activar'}</button>
       <button className="rounded bg-[#e9282d] px-4 py-3 text-sm font-bold text-white hover:bg-[#dc2626]" onClick={() => onDelete(product.id)} type="button">Eliminar</button>
     </div>
   )
 }
 
-function ProductRow({ onDelete, onEdit, onStock, product }: ProductActionsProps) {
+function ProductRow({ onDelete, onEdit, onStock, onToggle, product }: ProductActionsProps) {
   const cost = product.precioCosto ?? 0
   const sale = product.precioVenta ?? 0
   const stock = product.stockActual ?? 0
+  const stockMin = product.stockMinimo ?? 0
   const margin = sale - cost
   const marginPercent = cost > 0 ? ((sale - cost) / cost) * 100 : 0
+  const stockLow = stock <= stockMin && stockMin > 0
   return (
-    <tr className={`border-b border-[#111111] text-[#cfcfcf] ${!(product.isActive ?? true) ? 'opacity-50' : ''}`}>
+    <tr className={`border-b border-[#111111] text-[#cfcfcf] ${!(product.activo ?? true) ? 'opacity-50' : ''}`}>
       <TableCell><strong className="block text-white">{product.nombre}</strong><span className="text-sm text-[#6b6b6b]">{product.variante || '-'}</span></TableCell>
       <TableCell>{product.categoria}</TableCell>
       <TableCell>{formatCurrency(cost)}</TableCell>
       <TableCell><strong className="text-white">{formatCurrency(sale)}</strong></TableCell>
       <TableCell><span className="font-bold text-[#22c55e]">+{formatCurrency(margin)}</span> <span className="text-xs text-[#6b6b6b]">({marginPercent.toFixed(1)}%)</span></TableCell>
-      <TableCell><span className={`rounded border px-3 py-1 font-bold ${stock < 5 ? 'border-[#ef4444] bg-[#451a1a] text-[#fca5a5]' : 'border-[#22c55e] bg-[#064e2a] text-[#4ade80]'}`}>{stock} u.</span></TableCell>
-      <TableCell><span className="font-bold text-[#4ade80]">{(product.isActive ?? true) ? 'Activo' : 'Inactivo'}</span></TableCell>
-      <TableCell><ProductActions onDelete={onDelete} onEdit={onEdit} onStock={onStock} product={product} /></TableCell>
+      <TableCell>
+        <span className={`rounded border px-3 py-1 font-bold ${stock === 0 ? 'border-[#ef4444] bg-[#451a1a] text-[#fca5a5]' : stockLow ? 'border-[#f59e0b] bg-[#451a00] text-[#fbbf24]' : 'border-[#22c55e] bg-[#064e2a] text-[#4ade80]'}`}>{stock} u.</span>
+      </TableCell>
+      <TableCell><span className={`font-bold ${(product.activo ?? true) ? 'text-[#4ade80]' : 'text-[#6b7280]'}`}>{(product.activo ?? true) ? 'Activo' : 'Inactivo'}</span></TableCell>
+      <TableCell><ProductActions onDelete={onDelete} onEdit={onEdit} onStock={onStock} onToggle={onToggle} product={product} /></TableCell>
     </tr>
   )
 }
 
-function ProductCard({ onDelete, onEdit, onStock, product }: ProductActionsProps) {
+function ProductCard({ onDelete, onEdit, onStock, onToggle, product }: ProductActionsProps) {
   const cost = product.precioCosto ?? 0
   const sale = product.precioVenta ?? 0
   const stock = product.stockActual ?? 0
+  const stockMin = product.stockMinimo ?? 0
   const margin = sale - cost
+  const stockLow = stock <= stockMin && stockMin > 0
   return (
-    <article className={`rounded-lg border border-[#111111] bg-[#050505] p-4 ${!(product.isActive ?? true) ? 'opacity-50' : ''}`}>
-      <div className="flex items-start justify-between gap-4"><div><h2 className="font-bold text-white">{product.nombre}</h2><p className="text-sm text-[#6b6b6b]">{product.variante || 'Sin variante'}</p></div><span className={`rounded border px-3 py-1 font-bold ${stock < 5 ? 'border-[#ef4444] bg-[#451a1a] text-[#fca5a5]' : 'border-[#22c55e] bg-[#064e2a] text-[#4ade80]'}`}>{stock} u.</span></div>
-      <div className="mt-4 grid grid-cols-2 gap-3 text-sm text-[#cfcfcf]"><p>Categoría: <strong>{product.categoria}</strong></p><p>Estado: <strong className="text-[#4ade80]">{(product.isActive ?? true) ? 'Activo' : 'Inactivo'}</strong></p><p>Costo: <strong>{formatCurrency(cost)}</strong></p><p>Venta: <strong className="text-white">{formatCurrency(sale)}</strong></p><p className="col-span-2">Margen: <strong className="text-[#22c55e]">+{formatCurrency(margin)}</strong></p></div>
-      <div className="mt-4"><ProductActions onDelete={onDelete} onEdit={onEdit} onStock={onStock} product={product} /></div>
+    <article className={`rounded-lg border border-[#111111] bg-[#050505] p-4 ${!(product.activo ?? true) ? 'opacity-50' : ''}`}>
+      <div className="flex items-start justify-between gap-4"><div><h2 className="font-bold text-white">{product.nombre}</h2><p className="text-sm text-[#6b6b6b]">{product.variante || 'Sin variante'}</p></div>
+      <span className={`rounded border px-3 py-1 font-bold ${stock === 0 ? 'border-[#ef4444] bg-[#451a1a] text-[#fca5a5]' : stockLow ? 'border-[#f59e0b] bg-[#451a00] text-[#fbbf24]' : 'border-[#22c55e] bg-[#064e2a] text-[#4ade80]'}`}>{stock} u.</span></div>
+      <div className="mt-4 grid grid-cols-2 gap-3 text-sm text-[#cfcfcf]"><p>Categoría: <strong>{product.categoria}</strong></p><p>Estado: <strong className={`${(product.activo ?? true) ? 'text-[#4ade80]' : 'text-[#6b7280]'}`}>{(product.activo ?? true) ? 'Activo' : 'Inactivo'}</strong></p><p>Costo: <strong>{formatCurrency(cost)}</strong></p><p>Venta: <strong className="text-white">{formatCurrency(sale)}</strong></p><p className="col-span-2">Margen: <strong className="text-[#22c55e]">+{formatCurrency(margin)}</strong></p></div>
+      <div className="mt-4"><ProductActions onDelete={onDelete} onEdit={onEdit} onStock={onStock} onToggle={onToggle} product={product} /></div>
     </article>
   )
 }
@@ -383,43 +513,63 @@ function FormInput({ label, onChange, optional = false, placeholder, type = 'tex
   )
 }
 
-function SaleForm({ onSubmit, products, sale, saleError, setSale }: { onSubmit: (event: FormEvent<HTMLFormElement>) => void; products: Producto[]; sale: SaleFormState; saleError: string | null; setSale: React.Dispatch<React.SetStateAction<SaleFormState>> }) {
-  const [saleSearch, setSaleSearch] = useState('')
-  const selectedProduct = products.find((product) => product.id === sale.productoId)
-  const total = (selectedProduct?.precioVenta ?? 0) * (Number(sale.cantidad) || 0)
-  const filteredSaleProducts = saleSearch.trim()
-    ? products.filter((p) =>
-        `${p.nombre} ${p.variante ?? ''}`.toLowerCase().includes(saleSearch.trim().toLowerCase()),
-      )
+function SaleForm({ isLoading, onSubmit, products, sale, saleError, saleSuccess, setSale }: { isLoading: boolean; onSubmit: (event: FormEvent<HTMLFormElement>) => void; products: Producto[]; sale: SaleFormState; saleError: string | null; saleSuccess: boolean; setSale: React.Dispatch<React.SetStateAction<SaleFormState>> }) {
+  const [addSearch, setAddSearch] = useState('')
+  const [addProductId, setAddProductId] = useState('')
+  const [addCantidad, setAddCantidad] = useState('1')
+
+  const filteredAddProducts = addSearch.trim()
+    ? products.filter((p) => `${p.nombre} ${p.variante ?? ''}`.toLowerCase().includes(addSearch.trim().toLowerCase()))
     : []
+  const selectedAddProduct = products.find((p) => p.id === addProductId)
+
+  const cartTotal = sale.items.reduce((sum, item) => {
+    const product = products.find((p) => p.id === item.productoId)
+    return sum + (product?.precioVenta ?? 0) * item.cantidad
+  }, 0)
+
+  function handleAddItem() {
+    const cantidad = Number(addCantidad)
+    if (!addProductId || cantidad <= 0) return
+    setSale((current) => ({ ...current, items: [...current.items, { productoId: addProductId, cantidad }] }))
+    setAddProductId('')
+    setAddSearch('')
+    setAddCantidad('1')
+  }
+
+  function handleRemoveItem(index: number) {
+    setSale((current) => ({ ...current, items: current.items.filter((_, i) => i !== index) }))
+  }
+
   return (
     <form className="mt-6 rounded-lg bg-[#111111] p-6" onSubmit={onSubmit}>
       <h2 className="text-xl font-bold">Registrar Venta de Producto</h2>
-      <div className="mt-6 grid gap-4 lg:grid-cols-[1fr_140px_140px]">
+
+      <div className="mt-6 grid items-end gap-4 sm:grid-cols-[1fr_120px_auto]">
         <div className="relative">
-          <span className="font-bold">Producto *</span>
-          {selectedProduct && !saleSearch ? (
+          <span className="font-bold">Agregar producto *</span>
+          {selectedAddProduct && !addSearch ? (
             <div className="mt-2 flex items-center justify-between rounded-lg border border-[#f5c518] bg-[#0a0a0a] px-4 py-3">
-              <span className="text-white">{selectedProduct.nombre}{selectedProduct.variante ? ` — ${selectedProduct.variante}` : ''} <span className="text-sm text-[#a0a0a0]">({selectedProduct.stockActual ?? 0} u.)</span></span>
-              <button className="ml-3 text-[#a0a0a0] hover:text-white" onClick={() => { setSaleSearch(' '); setSale((c) => ({ ...c, productoId: '' })) }} type="button">✕</button>
+              <span className="text-white">{selectedAddProduct.nombre}{selectedAddProduct.variante ? ` — ${selectedAddProduct.variante}` : ''} <span className="text-sm text-[#a0a0a0]">({selectedAddProduct.stockActual ?? 0} u.)</span></span>
+              <button className="ml-3 text-[#a0a0a0] hover:text-white" onClick={() => { setAddSearch(' '); setAddProductId('') }} type="button">✕</button>
             </div>
           ) : (
             <div className="relative mt-2">
               <input
                 autoComplete="off"
                 className="w-full rounded-lg border border-[#6b5600] bg-[#0a0a0a] px-4 py-3 text-white outline-none placeholder:text-[#6b7280] focus:border-[#f5c518]"
-                onChange={(e) => setSaleSearch(e.target.value)}
+                onChange={(e) => setAddSearch(e.target.value)}
                 placeholder="Escribí para buscar un producto..."
                 type="text"
-                value={saleSearch.trim() === '' ? '' : saleSearch}
+                value={addSearch.trim() === '' ? '' : addSearch}
               />
-              {filteredSaleProducts.length > 0 ? (
+              {filteredAddProducts.length > 0 ? (
                 <ul className="absolute z-20 mt-1 max-h-52 w-full overflow-y-auto rounded-lg border border-[#6b5600] bg-[#0a0a0a] shadow-xl">
-                  {filteredSaleProducts.map((product) => (
+                  {filteredAddProducts.map((product) => (
                     <li key={product.id}>
                       <button
                         className="w-full px-4 py-3 text-left text-white hover:bg-[#1a1700] hover:text-[#f5c518]"
-                        onClick={() => { setSale((c) => ({ ...c, productoId: product.id })); setSaleSearch('') }}
+                        onClick={() => { setAddProductId(product.id); setAddSearch('') }}
                         type="button"
                       >
                         <span className="font-bold">{product.nombre}</span>
@@ -429,33 +579,84 @@ function SaleForm({ onSubmit, products, sale, saleError, setSale }: { onSubmit: 
                     </li>
                   ))}
                 </ul>
-              ) : saleSearch.trim() ? (
-                <p className="mt-2 text-sm text-[#a0a0a0]">Sin resultados para "{saleSearch.trim()}"</p>
+              ) : addSearch.trim() ? (
+                <p className="mt-2 text-sm text-[#a0a0a0]">Sin resultados para "{addSearch.trim()}"</p>
               ) : null}
             </div>
           )}
         </div>
-        <FormInput label="Cantidad" onChange={(value) => setSale((current) => ({ ...current, cantidad: value }))} type="number" value={sale.cantidad} />
-        <FormInput label="Precio unit." onChange={() => undefined} type="number" value={String(selectedProduct?.precioVenta ?? 0)} />
+        <label className="block">
+          <span className="font-bold">Cant.</span>
+          <input className="mt-2 w-full rounded-lg border border-[#3f3f3f] bg-[#111111] px-4 py-3 text-white outline-none focus:border-[#f5c518]" min="1" onChange={(e) => setAddCantidad(e.target.value)} type="number" value={addCantidad} />
+        </label>
+        <button
+          className="rounded-lg bg-[#f5c518] px-4 py-3 font-bold text-[#050505] disabled:opacity-50"
+          disabled={!addProductId}
+          onClick={handleAddItem}
+          type="button"
+        >
+          + Agregar
+        </button>
       </div>
-      <div className="mt-5 grid gap-4 lg:grid-cols-[176px_1fr]">
-        <div className="rounded-lg border border-[#2f2f2f] bg-[#050505] p-4 text-center"><p className="text-xs uppercase text-[#6b6b6b]">Total</p><p className="mt-2 text-xl font-bold text-[#a0a0a0]">{formatCurrency(total)}</p></div>
-        <div><p className="mb-2 font-bold">Método de pago</p><div className="grid gap-2 md:grid-cols-3">{(['EFECTIVO', 'TRANSFERENCIA', 'TARJETA'] as MetodoPagoMock[]).map((method) => <button className={`rounded-lg border px-4 py-3 font-bold ${sale.metodoPago === method ? 'border-[#f5c518] bg-[#f5c518]/10' : 'border-[#2f2f2f]'}`} key={method} onClick={() => setSale((current) => ({ ...current, metodoPago: method }))} type="button">{method}</button>)}</div></div>
+
+      <div className="mt-6">
+        <h3 className="font-bold">Carrito</h3>
+        {sale.items.length === 0 ? (
+          <p className="mt-3 text-sm text-[#a0a0a0]">Sin productos. Buscá y agregá items arriba.</p>
+        ) : (
+          <>
+            <div className="mt-3 space-y-2">
+              {sale.items.map((item, index) => {
+                const product = products.find((p) => p.id === item.productoId)
+                const subtotal = (product?.precioVenta ?? 0) * item.cantidad
+                return (
+                  <div className="flex items-center justify-between rounded-lg bg-[#0a0a0a] px-4 py-3 text-sm" key={index}>
+                    <span className="text-white">
+                      <strong>{product?.nombre ?? item.productoId}</strong>
+                      {product?.variante ? <span className="text-[#a0a0a0]"> — {product.variante}</span> : null}
+                      <span className="ml-2 text-[#a0a0a0]">· {item.cantidad} u. × {formatCurrency(product?.precioVenta ?? 0)} = <strong>{formatCurrency(subtotal)}</strong></span>
+                    </span>
+                    <button className="ml-4 shrink-0 text-[#a0a0a0] hover:text-red-400" onClick={() => handleRemoveItem(index)} type="button">✕</button>
+                  </div>
+                )
+              })}
+            </div>
+            <div className="mt-3 flex justify-end gap-2 text-sm text-[#a0a0a0]">
+              <span>Total:</span>
+              <strong className="text-xl text-white">{formatCurrency(cartTotal)}</strong>
+            </div>
+          </>
+        )}
       </div>
-      <div className="mt-5 grid gap-4 md:grid-cols-2"><FormInput label="Vendedor" onChange={(value) => setSale((current) => ({ ...current, vendedorId: value }))} optional placeholder="Nombre del vendedor" value={sale.vendedorId} /><FormInput label="Notas" onChange={(value) => setSale((current) => ({ ...current, notas: value }))} optional placeholder="Observaciones..." value={sale.notas} /></div>
+
+      <div className="mt-5">
+        <p className="mb-2 font-bold">Método de pago</p>
+        <div className="grid gap-2 md:grid-cols-3">
+          {(['EFECTIVO', 'TRANSFERENCIA', 'TARJETA'] as MetodoPago[]).map((method) => (
+            <button className={`rounded-lg border px-4 py-3 font-bold ${sale.metodoPago === method ? 'border-[#f5c518] bg-[#f5c518]/10 text-[#f5c518]' : 'border-[#2f2f2f] text-white'}`} key={method} onClick={() => setSale((current) => ({ ...current, metodoPago: method }))} type="button">{method}</button>
+          ))}
+        </div>
+      </div>
+      <div className="mt-5 grid gap-4 md:grid-cols-2">
+        <FormInput label="Vendedor" onChange={(value) => setSale((current) => ({ ...current, vendedorId: value }))} optional placeholder="Nombre del vendedor" value={sale.vendedorId} />
+        <FormInput label="Notas" onChange={(value) => setSale((current) => ({ ...current, notas: value }))} optional placeholder="Observaciones..." value={sale.notas} />
+      </div>
       {saleError ? <p className="mt-4 text-sm font-bold text-red-300">{saleError}</p> : null}
-      <button className="mt-5 w-full rounded-lg bg-[#e5c04f] px-4 py-4 font-bold text-[#050505] hover:bg-[#f5c518]" type="submit">Confirmar Venta</button>
+      {saleSuccess ? <p className="mt-4 text-sm font-bold text-[#4ade80]">Venta registrada con éxito.</p> : null}
+      <button className="mt-5 w-full rounded-lg bg-[#e5c04f] px-4 py-4 font-bold text-[#050505] hover:bg-[#f5c518] disabled:opacity-50 disabled:cursor-not-allowed" disabled={isLoading || sale.items.length === 0} type="submit">
+        {isLoading ? 'Registrando...' : `Confirmar Venta${sale.items.length > 0 ? ` (${sale.items.length} producto${sale.items.length > 1 ? 's' : ''})` : ''}`}
+      </button>
     </form>
   )
 }
 
-function SalesHistory({ historyDate, historyPayment, products, sales, setHistoryDate, setHistoryPayment }: { historyDate: string; historyPayment: MetodoPagoMock | 'TODOS'; products: Producto[]; sales: Venta[]; setHistoryDate: (date: string) => void; setHistoryPayment: (method: MetodoPagoMock | 'TODOS') => void }) {
+function SalesHistory({ historyDate, historyPayment, onRefresh, products, sales, setHistoryDate, setHistoryPayment }: { historyDate: string; historyPayment: MetodoPago | 'TODOS'; onRefresh: () => void; products: Producto[]; sales: Venta[]; setHistoryDate: (date: string) => void; setHistoryPayment: (method: MetodoPago | 'TODOS') => void }) {
   const total = sales.reduce((sum, sale) => sum + sale.total, 0)
   return (
     <>
-      <section className="mt-6 flex flex-col gap-4 rounded-lg bg-[#111111] p-4 sm:flex-row sm:items-center"><label className="font-bold">Fecha:</label><input className="rounded-lg border border-[#6b5600] bg-[#0a0a0a] px-4 py-3 text-white" onChange={(event) => setHistoryDate(event.target.value)} type="date" value={historyDate} /><select className="rounded-lg border border-[#6b5600] bg-[#0a0a0a] px-4 py-3 text-white" onChange={(event) => setHistoryPayment(event.target.value as MetodoPagoMock | 'TODOS')} value={historyPayment}><option value="TODOS">Todos</option><option value="EFECTIVO">Efectivo</option><option value="TRANSFERENCIA">Transferencia</option><option value="TARJETA">Tarjeta</option></select><button className="rounded-lg bg-[#e5c04f] px-6 py-3 font-bold text-[#050505] hover:bg-[#f5c518]" type="button">Actualizar</button></section>
+      <section className="mt-6 flex flex-col gap-4 rounded-lg bg-[#111111] p-4 sm:flex-row sm:items-center"><label className="font-bold">Fecha:</label><input className="rounded-lg border border-[#6b5600] bg-[#0a0a0a] px-4 py-3 text-white" onChange={(event) => setHistoryDate(event.target.value)} type="date" value={historyDate} /><select className="rounded-lg border border-[#6b5600] bg-[#0a0a0a] px-4 py-3 text-white" onChange={(event) => setHistoryPayment(event.target.value as MetodoPago | 'TODOS')} value={historyPayment}><option value="TODOS">Todos</option><option value="EFECTIVO">Efectivo</option><option value="TRANSFERENCIA">Transferencia</option><option value="TARJETA">Tarjeta</option></select><button className="rounded-lg bg-[#e5c04f] px-6 py-3 font-bold text-[#050505] hover:bg-[#f5c518]" onClick={onRefresh} type="button">Actualizar</button></section>
       <section className="mt-5 grid gap-4 md:grid-cols-4"><SummaryCard accent="border-l-[#f5c518]" label="Ventas del día" value={sales.length} /><article className="rounded-lg bg-[#e5c04f] p-6 text-[#050505] shadow-lg shadow-[#e5c04f]/20"><p className="font-bold">Total vendido</p><p className="mt-3 text-3xl font-bold">{formatCurrency(total)}</p></article><article className="rounded-lg border-l-4 border-l-[#6b6b6b] bg-[#111111] p-6"><p className="font-bold text-[#bdbdbd]">Efectivo</p><p className="mt-3 text-2xl font-bold text-white">{formatCurrency(sales.filter((sale) => sale.metodoPago === 'EFECTIVO').reduce((sum, sale) => sum + sale.total, 0))}</p></article><article className="rounded-lg border-l-4 border-l-[#6b6b6b] bg-[#111111] p-6"><p className="font-bold text-[#bdbdbd]">Transf. + Tarjeta</p><p className="mt-3 text-2xl font-bold text-white">{formatCurrency(sales.filter((sale) => sale.metodoPago !== 'EFECTIVO').reduce((sum, sale) => sum + sale.total, 0))}</p></article></section>
-      <section className="mt-5 rounded-lg border border-[#111111] bg-[#050505] p-6 text-[#d1d5db]">{sales.length === 0 ? <p className="p-8 text-center text-[#6b7280]">No hay ventas registradas para esta fecha.</p> : <div className="space-y-3">{sales.map((sale) => <div className="grid gap-2 rounded-lg bg-[#111111] p-4 md:grid-cols-[1fr_auto_auto]" key={sale.id}><span>{products.find((product) => product.id === sale.productoId)?.nombre ?? sale.productoId} · {sale.cantidad} u.</span><span>{sale.metodoPago}</span><strong>{formatCurrency(sale.total)}</strong></div>)}</div>}</section>
+      <section className="mt-5 rounded-lg border border-[#111111] bg-[#050505] p-6 text-[#d1d5db]">{sales.length === 0 ? <p className="p-8 text-center text-[#6b7280]">No hay ventas registradas para esta fecha.</p> : <div className="space-y-3">{sales.map((sale) => <div className="grid gap-2 rounded-lg bg-[#111111] p-4 md:grid-cols-[1fr_auto_auto]" key={sale.id}><span>{sale.productoNombre ?? products.find((product) => product.id === sale.productoId)?.nombre ?? sale.productoId} · {sale.cantidad} u.</span><span>{sale.metodoPago}</span><strong>{formatCurrency(sale.total)}</strong></div>)}</div>}</section>
     </>
   )
 }

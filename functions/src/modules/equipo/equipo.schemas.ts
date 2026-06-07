@@ -8,8 +8,8 @@ export const barberoSchema = z.object({
   colorHex: z.string().optional(),
   sucursalId: z.string().optional(),
   fechaIngreso: z.string().optional(),
-  isActive: z.boolean().optional().default(true),
-  isOwner: z.boolean().optional().default(false),
+  activo: z.boolean().optional().default(true),
+  esDueno: z.boolean().optional().default(false),
 })
 
 export type BarberoInput = z.infer<typeof barberoSchema>

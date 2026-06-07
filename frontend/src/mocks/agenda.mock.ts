@@ -168,7 +168,6 @@ export const MOCK_TURNOS_FIJOS: TurnoFijo[] = [
     clienteTelefono: '3731662839',
     hora: '10:30',
     fechasAgendadas: [offset(7), offset(14), offset(21), offset(28)],
-    activo: true,
     proximaFecha: offset(7),
   },
   {
@@ -180,7 +179,6 @@ export const MOCK_TURNOS_FIJOS: TurnoFijo[] = [
     clienteTelefono: '3623333333',
     hora: '14:00',
     fechasAgendadas: [offset(14), offset(28)],
-    activo: true,
     proximaFecha: offset(14),
   },
   {
@@ -192,7 +190,6 @@ export const MOCK_TURNOS_FIJOS: TurnoFijo[] = [
     clienteTelefono: '3620000000',
     hora: '13:00',
     fechasAgendadas: [offset(7), offset(21)],
-    activo: true,
     proximaFecha: offset(7),
   },
 ]

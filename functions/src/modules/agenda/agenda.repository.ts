@@ -2,14 +2,15 @@ import { FieldValue } from 'firebase-admin/firestore'
 import { firestore } from '../../config/firebase'
 import type {
   CreateTurnoFijoInput,
-  CreateTurnoInput,
-  ReemplazoFijoInput,
   TurnoData,
   TurnoFijoData,
   TurnosFijosFilters,
   TurnosFilters,
   UpdateTurnoFijoInput,
+  UpdateTurnoInput,
 } from './agenda.schemas'
+
+export type TurnoInsertData = Omit<TurnoData, 'id'>
 
 function docToTurno(doc: FirebaseFirestore.DocumentSnapshot): TurnoData {
   const data = doc.data()
@@ -24,9 +25,9 @@ function docToTurnoFijo(doc: FirebaseFirestore.DocumentSnapshot): TurnoFijoData 
 }
 
 export class AgendaRepository {
-  // ── Turnos ────────────────────────────────────────────────────────────────
+  // ── Queries ───────────────────────────────────────────────────────────────
 
-  async findAllTurnos(filters: TurnosFilters): Promise<TurnoData[]> {
+  async findTurnos(filters: TurnosFilters): Promise<TurnoData[]> {
     let q: FirebaseFirestore.Query = firestore.collection('turnos')
     if (filters.sucursalId) q = q.where('sucursalId', '==', filters.sucursalId)
     if (filters.barberoId) q = q.where('barberoId', '==', filters.barberoId)
@@ -35,61 +36,13 @@ export class AgendaRepository {
     return snap.docs.map(docToTurno)
   }
 
-  async createTurno(data: CreateTurnoInput & { creadoPor: string }): Promise<TurnoData> {
-    const ref = await firestore.collection('turnos').add({
-      ...data,
-      estado: 'PENDIENTE',
-      createdAt: FieldValue.serverTimestamp(),
-    })
-    return docToTurno(await ref.get())
+  async findTurno(id: string): Promise<TurnoData | null> {
+    const doc = await firestore.collection('turnos').doc(id).get()
+    if (!doc.exists) return null
+    return docToTurno(doc)
   }
 
-  async updateTurnoEstado(id: string, estado: string): Promise<TurnoData> {
-    const ref = firestore.collection('turnos').doc(id)
-    const doc = await ref.get()
-    if (!doc.exists) throw new Error('TURNO_NOT_FOUND')
-    await ref.update({ estado })
-    return docToTurno(await ref.get())
-  }
-
-  async realizarTurno(id: string, metodoPago: string): Promise<TurnoData> {
-    const ref = firestore.collection('turnos').doc(id)
-    const doc = await ref.get()
-    if (!doc.exists) throw new Error('TURNO_NOT_FOUND')
-    await ref.update({ estado: 'REALIZADO', metodoPago })
-    return docToTurno(await ref.get())
-  }
-
-  async createReemplazoFijo(originalId: string, data: ReemplazoFijoInput, creadoPor: string): Promise<TurnoData> {
-    const originalDoc = await firestore.collection('turnos').doc(originalId).get()
-    if (!originalDoc.exists) throw new Error('TURNO_NOT_FOUND')
-    const original = docToTurno(originalDoc)
-
-    const ref = await firestore.collection('turnos').add({
-      sucursalId: original.sucursalId,
-      barberoId: original.barberoId,
-      fecha: original.fecha,
-      hora: original.hora,
-      horaFin: original.horaFin,
-      servicioId: data.servicioId,
-      clienteNombre: data.clienteNombre,
-      clienteTelefono: data.clienteTelefono,
-      metodoPago: data.metodoPago,
-      estado: 'PENDIENTE',
-      esFijo: false,
-      esReemplazoFijo: true,
-      turnoOriginalId: originalId,
-      creadoPor,
-      createdAt: FieldValue.serverTimestamp(),
-    })
-
-    await firestore.collection('turnos').doc(originalId).update({ estado: 'AUSENTE_FIJO' })
-    return docToTurno(await ref.get())
-  }
-
-  // ── Turnos Fijos ──────────────────────────────────────────────────────────
-
-  async findAllTurnosFijos(filters: TurnosFijosFilters): Promise<TurnoFijoData[]> {
+  async findTurnosFijos(filters: TurnosFijosFilters): Promise<TurnoFijoData[]> {
     let q: FirebaseFirestore.Query = firestore.collection('turnosFijos')
     if (filters.sucursalId) q = q.where('sucursalId', '==', filters.sucursalId)
     if (filters.barberoId) q = q.where('barberoId', '==', filters.barberoId)
@@ -97,12 +50,96 @@ export class AgendaRepository {
     return snap.docs.map(docToTurnoFijo)
   }
 
-  async createTurnoFijo(data: CreateTurnoFijoInput): Promise<TurnoFijoData> {
+  async findTurnoFijo(id: string): Promise<TurnoFijoData | null> {
+    const doc = await firestore.collection('turnosFijos').doc(id).get()
+    if (!doc.exists) return null
+    return docToTurnoFijo(doc)
+  }
+
+  async findTurnosByBarberoFecha(barberoId: string, fecha: string): Promise<TurnoData[]> {
+    const snap = await firestore
+      .collection('turnos')
+      .where('barberoId', '==', barberoId)
+      .where('fecha', '==', fecha)
+      .get()
+    return snap.docs.map(docToTurno)
+  }
+
+  async findTurnosByBarberoHora(barberoId: string, hora: string): Promise<TurnoData[]> {
+    const snap = await firestore
+      .collection('turnos')
+      .where('barberoId', '==', barberoId)
+      .where('hora', '==', hora)
+      .get()
+    return snap.docs.map(docToTurno)
+  }
+
+  async findTurnosFijosByBarberoHora(barberoId: string, hora: string): Promise<TurnoFijoData[]> {
+    const snap = await firestore
+      .collection('turnosFijos')
+      .where('barberoId', '==', barberoId)
+      .where('hora', '==', hora)
+      .get()
+    return snap.docs.map(docToTurnoFijo)
+  }
+
+  async findTurnosByFijoId(fijoId: string): Promise<TurnoData[]> {
+    const snap = await firestore.collection('turnos').where('turnoFijoId', '==', fijoId).get()
+    return snap.docs.map(docToTurno)
+  }
+
+  // ── Writes ────────────────────────────────────────────────────────────────
+
+  async insertTurno(data: TurnoInsertData): Promise<TurnoData> {
+    const ref = await firestore.collection('turnos').add({
+      ...data,
+      createdAt: FieldValue.serverTimestamp(),
+    })
+    return docToTurno(await ref.get())
+  }
+
+  async insertTurnos(turnos: TurnoInsertData[]): Promise<TurnoData[]> {
+    const results: TurnoData[] = []
+    for (const data of turnos) {
+      const ref = await firestore.collection('turnos').add({
+        ...data,
+        createdAt: FieldValue.serverTimestamp(),
+      })
+      results.push(docToTurno(await ref.get()))
+    }
+    return results
+  }
+
+  async patchTurnoEstado(id: string, estado: string): Promise<TurnoData> {
+    const ref = firestore.collection('turnos').doc(id)
+    const doc = await ref.get()
+    if (!doc.exists) throw new Error('TURNO_NOT_FOUND')
+    await ref.update({ estado })
+    return docToTurno(await ref.get())
+  }
+
+  async patchTurnoRealizado(id: string, metodoPago: string): Promise<TurnoData> {
+    const ref = firestore.collection('turnos').doc(id)
+    const doc = await ref.get()
+    if (!doc.exists) throw new Error('TURNO_NOT_FOUND')
+    await ref.update({ estado: 'REALIZADO', metodoPago })
+    return docToTurno(await ref.get())
+  }
+
+  async patchTurno(id: string, data: UpdateTurnoInput): Promise<TurnoData> {
+    const ref = firestore.collection('turnos').doc(id)
+    const doc = await ref.get()
+    if (!doc.exists) throw new Error('TURNO_NOT_FOUND')
+    await ref.update({ ...data })
+    return docToTurno(await ref.get())
+  }
+
+  async insertTurnoFijo(data: CreateTurnoFijoInput): Promise<TurnoFijoData> {
     const ref = await firestore.collection('turnosFijos').add({ ...data })
     return docToTurnoFijo(await ref.get())
   }
 
-  async updateTurnoFijo(id: string, data: UpdateTurnoFijoInput): Promise<TurnoFijoData> {
+  async patchTurnoFijo(id: string, data: Omit<UpdateTurnoFijoInput, 'cascadeToFutureTurnos'>): Promise<TurnoFijoData> {
     const ref = firestore.collection('turnosFijos').doc(id)
     const doc = await ref.get()
     if (!doc.exists) throw new Error('TURNO_FIJO_NOT_FOUND')
@@ -110,66 +147,19 @@ export class AgendaRepository {
     return docToTurnoFijo(await ref.get())
   }
 
-  async deleteTurnoFijo(id: string): Promise<void> {
-    const doc = await firestore.collection('turnosFijos').doc(id).get()
-    if (!doc.exists) throw new Error('TURNO_FIJO_NOT_FOUND')
-    await firestore.collection('turnosFijos').doc(id).delete()
+  async batchUpdateTurnos(updates: Array<{ id: string; data: Record<string, unknown> }>): Promise<void> {
+    const batch = firestore.batch()
+    updates.forEach(({ id, data }) => {
+      batch.update(firestore.collection('turnos').doc(id), data)
+    })
+    await batch.commit()
   }
 
-  async pausarTurnoFijo(id: string, hasta: string): Promise<TurnoFijoData> {
-    const ref = firestore.collection('turnosFijos').doc(id)
-    const doc = await ref.get()
-    if (!doc.exists) throw new Error('TURNO_FIJO_NOT_FOUND')
-    await ref.update({ pausadoHasta: hasta })
-    return docToTurnoFijo(await ref.get())
-  }
-
-  async reanudarTurnoFijo(id: string): Promise<TurnoFijoData> {
-    const ref = firestore.collection('turnosFijos').doc(id)
-    const doc = await ref.get()
-    if (!doc.exists) throw new Error('TURNO_FIJO_NOT_FOUND')
-    await ref.update({ pausadoHasta: FieldValue.delete() })
-    return docToTurnoFijo(await ref.get())
-  }
-
-  async generarProximoTurnoFijo(fijoId: string, creadoPor: string): Promise<TurnoData[]> {
-    const fijoDoc = await firestore.collection('turnosFijos').doc(fijoId).get()
-    if (!fijoDoc.exists) throw new Error('TURNO_FIJO_NOT_FOUND')
-    const fijo = docToTurnoFijo(fijoDoc)
-
-    const hoy = new Date().toISOString().slice(0, 10)
-    const fechasFuturas = fijo.fechasAgendadas.filter((f) => f >= hoy).sort()
-
-    const existingSnap = await firestore.collection('turnos').where('turnoFijoId', '==', fijoId).get()
-    const existingFechas = new Set(
-      existingSnap.docs
-        .map((d) => d.data())
-        .filter((d) => d['estado'] !== 'CANCELADO')
-        .map((d) => d['fecha'] as string),
-    )
-
-    const fechasPendientes = fechasFuturas.filter((f) => !existingFechas.has(f))
-    const newTurnos: TurnoData[] = []
-
-    for (const fecha of fechasPendientes) {
-      const ref = await firestore.collection('turnos').add({
-        sucursalId: fijo.sucursalId,
-        barberoId: fijo.barberoId,
-        servicioId: fijo.servicioId,
-        clienteNombre: fijo.clienteNombre,
-        clienteTelefono: fijo.clienteTelefono,
-        fecha,
-        hora: fijo.hora,
-        estado: 'PENDIENTE',
-        esFijo: true,
-        turnoFijoId: fijoId,
-        creadoPor,
-        createdAt: FieldValue.serverTimestamp(),
-      })
-      newTurnos.push(docToTurno(await ref.get()))
-    }
-
-    return newTurnos
+  async batchDeleteTurnoFijoYTurnos(fijoId: string, turnoIds: string[]): Promise<void> {
+    const batch = firestore.batch()
+    batch.delete(firestore.collection('turnosFijos').doc(fijoId))
+    turnoIds.forEach((tid) => batch.delete(firestore.collection('turnos').doc(tid)))
+    await batch.commit()
   }
 }
 

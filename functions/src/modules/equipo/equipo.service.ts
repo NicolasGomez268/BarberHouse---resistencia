@@ -11,19 +11,22 @@ export class EquipoService {
   }
 
   create(input: BarberoInput) {
-    return equipoRepository.create(input)
+    return equipoRepository.insertBarbero(input)
   }
 
   update(id: string, input: BarberoUpdateInput) {
-    return equipoRepository.update(id, input)
+    return equipoRepository.patchBarbero(id, input)
   }
 
-  delete(id: string) {
-    return equipoRepository.delete(id)
+  async delete(id: string): Promise<boolean> {
+    const deleted = await equipoRepository.deleteBarbero(id)
+    if (!deleted) return false
+    await equipoRepository.deleteHorario(id)
+    return true
   }
 
   toggle(id: string) {
-    return equipoRepository.toggle(id)
+    return equipoRepository.patchBarberoActivo(id)
   }
 
   upsertHorario(input: HorarioInput) {

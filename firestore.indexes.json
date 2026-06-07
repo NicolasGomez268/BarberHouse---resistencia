@@ -20,16 +20,8 @@
       "collectionGroup": "turnos",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "turnoFijoId", "order": "ASCENDING" },
-        { "fieldPath": "fecha", "order": "ASCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "turnosFijos",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "sucursalId", "order": "ASCENDING" },
-        { "fieldPath": "activo", "order": "ASCENDING" }
+        { "fieldPath": "barberoId", "order": "ASCENDING" },
+        { "fieldPath": "hora", "order": "ASCENDING" }
       ]
     },
     {
@@ -37,7 +29,7 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "barberoId", "order": "ASCENDING" },
-        { "fieldPath": "activo", "order": "ASCENDING" }
+        { "fieldPath": "hora", "order": "ASCENDING" }
       ]
     }
   ],

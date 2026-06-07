@@ -5,7 +5,7 @@ export const servicioSchema = z.object({
   descripcion: z.string().optional(),
   precio: z.number().positive(),
   duracionMinutos: z.number().int().positive(),
-  isActive: z.boolean().optional().default(true),
+  activo: z.boolean().optional().default(true),
 })
 
 export type ServicioInput = z.infer<typeof servicioSchema>

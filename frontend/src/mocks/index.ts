@@ -1,5 +1,4 @@
 export { authMock } from './auth.mock'
-export { cajaMock } from './caja.mock'
 export { MOCK_BARBEROS, MOCK_HORARIOS, equipoMock } from './equipo.mock'
 export { MOCK_SERVICIOS, serviciosMock } from './servicios.mock'
 export { MOCK_PRODUCTOS, MOCK_VENTAS, inventarioMock } from './inventario.mock'
