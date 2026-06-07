@@ -23,12 +23,14 @@ export function useEquipo() {
     cargarEquipo().finally(() => setLoading(false))
   }, [])
 
-  async function agregarBarbero(barbero: Omit<Barbero, 'id'>) {
+  async function agregarBarbero(barbero: Omit<Barbero, 'id'>): Promise<string | null> {
     try {
-      await apiClient.post('/equipo', barbero)
+      const { data } = await apiClient.post<{ barbero: Barbero; invitacionUrl: string }>('/equipo', barbero)
       await cargarEquipo()
+      return data.invitacionUrl
     } catch {
       setError('Error al crear el barbero')
+      return null
     }
   }
 

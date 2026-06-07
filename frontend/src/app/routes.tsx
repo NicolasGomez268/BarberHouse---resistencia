@@ -4,6 +4,7 @@ import { CajaPage } from '../pages/CajaPage'
 import { EquipoPage } from '../pages/EquipoPage'
 import { InventarioPage } from '../pages/InventarioPage'
 import { LoginPage } from '../pages/LoginPage'
+import { RegistroPage } from '../pages/RegistroPage'
 import { ServiciosPage } from '../pages/ServiciosPage'
 import { AdminLayout } from '../shared/layouts/AdminLayout'
 import { CajaRoute } from '../shared/layouts/CajaRoute'
@@ -13,6 +14,7 @@ export function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/registro" element={<RegistroPage />} />
       <Route element={<ProtectedRoute />}>
         <Route element={<AdminLayout />}>
           <Route index element={<Navigate to="/agenda" replace />} />

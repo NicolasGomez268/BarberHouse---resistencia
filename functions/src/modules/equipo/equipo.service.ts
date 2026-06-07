@@ -1,5 +1,9 @@
+import { randomUUID } from 'node:crypto'
 import { equipoRepository } from './equipo.repository'
+import type { BarberoData } from './equipo.repository'
 import type { BarberoInput, BarberoUpdateInput, HorarioInput } from './equipo.schemas'
+
+const FRONTEND_URL = process.env.CORS_ORIGIN ?? 'http://localhost:5173'
 
 export class EquipoService {
   async list() {
@@ -10,8 +14,12 @@ export class EquipoService {
     return { barberos, horarios }
   }
 
-  create(input: BarberoInput) {
-    return equipoRepository.insertBarbero(input)
+  async create(input: BarberoInput): Promise<{ barbero: BarberoData; invitacionUrl: string }> {
+    const barbero = await equipoRepository.insertBarbero(input)
+    const token = randomUUID()
+    await equipoRepository.insertInvitacion(token, barbero.id)
+    const invitacionUrl = `${FRONTEND_URL}/registro?token=${token}`
+    return { barbero, invitacionUrl }
   }
 
   update(id: string, input: BarberoUpdateInput) {

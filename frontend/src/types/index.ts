@@ -8,8 +8,9 @@ export type Usuario = {
   id: ID
   email: string
   nombre: string
-  rol: 'admin'
+  rol: 'admin' | 'barbero'
   sucursalesConAccesoCaja: SucursalId[]
+  barberoId?: string
 }
 
 export type Sucursal = {

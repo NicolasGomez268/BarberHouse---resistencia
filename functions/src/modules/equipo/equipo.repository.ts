@@ -1,4 +1,4 @@
-import { FieldValue } from 'firebase-admin/firestore'
+import { FieldValue, Timestamp } from 'firebase-admin/firestore'
 import { firestore } from '../../config/firebase'
 import type { BarberoInput, BarberoUpdateInput, HorarioInput } from './equipo.schemas'
 
@@ -123,6 +123,17 @@ export class EquipoRepository {
     const doc = await firestore.collection('horarios').doc(barberoId).get()
     if (!doc.exists) return null
     return docToHorario(doc)
+  }
+
+  async insertInvitacion(token: string, barberoId: string): Promise<void> {
+    const expiresAt = new Date()
+    expiresAt.setDate(expiresAt.getDate() + 7)
+    await firestore.collection('invitaciones').doc(token).set({
+      barberoId,
+      expiresAt: Timestamp.fromDate(expiresAt),
+      usado: false,
+      creadoEn: FieldValue.serverTimestamp(),
+    })
   }
 }
 

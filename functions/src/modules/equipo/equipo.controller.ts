@@ -23,8 +23,8 @@ export class EquipoController {
         response.status(400).json({ error: 'Datos inválidos', details: parsed.error.issues })
         return
       }
-      const barbero = await equipoService.create(parsed.data)
-      response.status(201).json({ barbero })
+      const { barbero, invitacionUrl } = await equipoService.create(parsed.data)
+      response.status(201).json({ barbero, invitacionUrl })
     } catch {
       response.status(500).json({ error: 'Error al crear el barbero' })
     }

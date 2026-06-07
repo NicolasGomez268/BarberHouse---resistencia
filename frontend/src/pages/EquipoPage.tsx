@@ -90,6 +90,8 @@ export function EquipoPage() {
   const [form, setForm] = useState<BarberoForm>(emptyForm)
   const [selectedScheduleBarber, setSelectedScheduleBarber] = useState<Barbero | null>(null)
   const [scheduleDraft, setScheduleDraft] = useState<DaySchedule[]>(cloneDefaultSchedule)
+  const [invitacionUrl, setInvitacionUrl] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
 
   function closeModal() {
     setIsModalOpen(false)
@@ -135,11 +137,16 @@ export function EquipoPage() {
 
     if (editingBarber) {
       actualizarBarbero(editingBarber.id, payload)
+      closeModal()
     } else {
-      agregarBarbero(payload)
+      agregarBarbero(payload).then((url) => {
+        closeModal()
+        if (url) {
+          setInvitacionUrl(url)
+          setCopied(false)
+        }
+      })
     }
-
-    closeModal()
   }
 
   function openScheduleModal(barbero: Barbero) {
@@ -386,6 +393,39 @@ export function EquipoPage() {
                 Eliminar
               </button>
             </div>
+          </section>
+        </div>
+      ) : null}
+
+      {invitacionUrl ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4">
+          <section className="w-full max-w-md rounded-lg border border-[#4f3f00] bg-[#050505] p-6 text-white shadow-2xl">
+            <h2 className="text-xl font-bold">Link de invitación</h2>
+            <p className="mt-2 text-sm text-[#a0a0a0]">
+              Copiá este link y mandáselo al barbero por WhatsApp. Expira en 7 días.
+            </p>
+            <div className="mt-4 flex items-center gap-2 rounded-lg border border-[#2f2f2f] bg-[#111111] px-3 py-3">
+              <span className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-xs text-[#d1d5db]">
+                {invitacionUrl}
+              </span>
+              <button
+                className="shrink-0 rounded-md bg-[#f5c518] px-3 py-1 text-xs font-bold text-[#050505] hover:bg-[#e5c04f]"
+                onClick={() => {
+                  navigator.clipboard.writeText(invitacionUrl)
+                  setCopied(true)
+                }}
+                type="button"
+              >
+                {copied ? '¡Copiado!' : 'Copiar'}
+              </button>
+            </div>
+            <button
+              className="mt-5 w-full rounded-lg bg-[#3f3f3f] py-3 text-sm font-bold text-white hover:bg-[#6b6b6b]"
+              onClick={() => setInvitacionUrl(null)}
+              type="button"
+            >
+              Cerrar
+            </button>
           </section>
         </div>
       ) : null}
