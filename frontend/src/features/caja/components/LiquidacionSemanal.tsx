@@ -1,5 +1,5 @@
 import type { SucursalId } from '../../../types'
-import { useCaja } from '../hooks/useCaja'
+import { useLiquidacion } from '../hooks/useLiquidacion'
 
 type LiquidacionSemanalProps = {
   desde: string
@@ -12,12 +12,11 @@ function money(value: number) {
 }
 
 export function LiquidacionSemanal({ desde, hasta, sucursalId }: LiquidacionSemanalProps) {
-  const { calcularLiquidacion } = useCaja()
-  const data = calcularLiquidacion(desde, hasta, sucursalId)
+  const { data, loading, error } = useLiquidacion(desde, hasta, sucursalId)
 
-  if (data.filas.length === 0) {
-    return <p className="rounded-lg bg-surface p-6 text-text-secondary">No hay turnos realizados en este rango.</p>
-  }
+  if (loading) return <p className="rounded-lg bg-surface p-6 text-text-secondary">Cargando...</p>
+  if (error || !data) return <p className="rounded-lg bg-surface p-6 text-red-300">{error ?? 'Error al cargar los datos'}</p>
+  if (data.filas.length === 0) return <p className="rounded-lg bg-surface p-6 text-text-secondary">No hay turnos realizados en este rango.</p>
 
   return (
     <section className="min-w-0 rounded-lg bg-surface">
@@ -89,33 +88,19 @@ export function LiquidacionSemanal({ desde, hasta, sucursalId }: LiquidacionSema
         <tbody>
           {data.filas.map((row) => (
             <tr className="border-b border-white/10" key={row.barberoId}>
-              <td className="p-4 font-bold">
-                <span className="block truncate">{row.barberoNombre}</span>
-              </td>
+              <td className="p-4 font-bold"><span className="block truncate">{row.barberoNombre}</span></td>
               <td className="p-4 text-right">{row.turnosRealizados}</td>
-              <td className="p-4 text-right">
-                <span className="block truncate">{money(row.montoBruto)}</span>
-              </td>
-              <td className="p-4 text-right text-green-300">
-                <span className="block truncate">{money(row.comisionBarbero)}</span>
-              </td>
-              <td className="p-4 text-right text-accent">
-                <span className="block truncate">{money(row.parteCasa)}</span>
-              </td>
+              <td className="p-4 text-right"><span className="block truncate">{money(row.montoBruto)}</span></td>
+              <td className="p-4 text-right text-green-300"><span className="block truncate">{money(row.comisionBarbero)}</span></td>
+              <td className="p-4 text-right text-accent"><span className="block truncate">{money(row.parteCasa)}</span></td>
             </tr>
           ))}
           <tr className="font-bold">
             <td className="p-4">Totales</td>
             <td className="p-4 text-right">{data.filas.reduce((total, row) => total + row.turnosRealizados, 0)}</td>
-            <td className="p-4 text-right">
-              <span className="block truncate">{money(data.totalBruto)}</span>
-            </td>
-            <td className="p-4 text-right text-green-300">
-              <span className="block truncate">{money(data.totalComisiones)}</span>
-            </td>
-            <td className="p-4 text-right text-accent">
-              <span className="block truncate">{money(data.totalCasa)}</span>
-            </td>
+            <td className="p-4 text-right"><span className="block truncate">{money(data.totalBruto)}</span></td>
+            <td className="p-4 text-right text-green-300"><span className="block truncate">{money(data.totalComisiones)}</span></td>
+            <td className="p-4 text-right text-accent"><span className="block truncate">{money(data.totalCasa)}</span></td>
           </tr>
         </tbody>
       </table>

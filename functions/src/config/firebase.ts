@@ -12,5 +12,8 @@ function initApp(): admin.app.App {
 
 const firebaseApp = initApp()
 
-export const firestore = firebaseApp.firestore()
+const firestoreInstance = firebaseApp.firestore()
+firestoreInstance.settings({ ignoreUndefinedProperties: true })
+
+export const firestore = firestoreInstance
 export const adminAuth = admin.auth(firebaseApp)

@@ -1,14 +1,11 @@
 import { useEffect, useState } from 'react'
-import { MOCK_PRODUCTOS, MOCK_VENTAS } from '../../../mocks'
 import { apiClient } from '../../../shared/api/client'
-import type { Producto, Venta } from '../../../types'
-
-const USE_MOCKS = import.meta.env.VITE_USE_MOCKS !== 'false'
+import type { MetodoPago, Producto, SucursalId, Venta } from '../../../types'
 
 export function useInventario() {
-  const [productos, setProductos] = useState<Producto[]>(USE_MOCKS ? MOCK_PRODUCTOS : [])
-  const [ventas, setVentas] = useState<Venta[]>(USE_MOCKS ? MOCK_VENTAS : [])
-  const [loading, setLoading] = useState(!USE_MOCKS)
+  const [productos, setProductos] = useState<Producto[]>([])
+  const [ventas, setVentas] = useState<Venta[]>([])
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   async function cargarInventario() {
@@ -20,80 +17,73 @@ export function useInventario() {
     }
   }
 
+  async function cargarVentas(fecha?: string) {
+    try {
+      const params: Record<string, string> = {}
+      if (fecha) params['fecha'] = fecha
+      const { data } = await apiClient.get<{ ventas: Venta[] }>('/inventario/ventas', { params })
+      setVentas(data.ventas)
+    } catch {
+      setError('Error al cargar las ventas')
+    }
+  }
+
   useEffect(() => {
-    if (USE_MOCKS) return
+    const today = new Date().toISOString().slice(0, 10)
     setLoading(true)
-    cargarInventario().finally(() => setLoading(false))
+    Promise.all([cargarInventario(), cargarVentas(today)]).finally(() => setLoading(false))
   }, [])
 
   async function agregarProducto(producto: Omit<Producto, 'id'>) {
-    if (!USE_MOCKS) {
-      try {
-        await apiClient.post('/inventario', producto)
-        await cargarInventario()
-      } catch {
-        setError('Error al crear el producto')
-      }
-      return
+    try {
+      await apiClient.post('/inventario', producto)
+      await cargarInventario()
+    } catch {
+      setError('Error al crear el producto')
     }
-    const nuevo: Producto = { ...producto, id: `prod-${Date.now()}` }
-    setProductos((prev) => [nuevo, ...prev])
   }
 
   async function actualizarProducto(id: string, datos: Partial<Producto>) {
-    if (!USE_MOCKS) {
-      try {
-        await apiClient.patch(`/inventario/${id}`, datos)
-        await cargarInventario()
-      } catch {
-        setError('Error al actualizar el producto')
-      }
-      return
+    try {
+      await apiClient.patch(`/inventario/${id}`, datos)
+      await cargarInventario()
+    } catch {
+      setError('Error al actualizar el producto')
     }
-    setProductos((prev) => prev.map((producto) => (producto.id === id ? { ...producto, ...datos } : producto)))
+  }
+
+  async function eliminarProducto(id: string) {
+    try {
+      await apiClient.delete(`/inventario/${id}`)
+      await cargarInventario()
+    } catch {
+      setError('Error al eliminar el producto')
+    }
   }
 
   async function ajustarStock(id: string, cantidad: number, operacion: 'agregar' | 'restar' | 'establecer') {
-    if (!USE_MOCKS) {
-      try {
-        await apiClient.patch(`/inventario/${id}/stock`, { operacion, cantidad })
-        await cargarInventario()
-      } catch {
-        setError('Error al ajustar el stock')
-      }
-      return
+    try {
+      await apiClient.patch(`/inventario/${id}/stock`, { operacion, cantidad })
+      await cargarInventario()
+    } catch {
+      setError('Error al ajustar el stock')
     }
-    setProductos((prev) =>
-      prev.map((producto) => {
-        if (producto.id !== id) return producto
-        let nuevoStock = producto.stockActual ?? producto.stock ?? 0
-        if (operacion === 'agregar') nuevoStock += cantidad
-        if (operacion === 'restar') nuevoStock = Math.max(0, nuevoStock - cantidad)
-        if (operacion === 'establecer') nuevoStock = cantidad
-        return { ...producto, stockActual: nuevoStock, stock: nuevoStock }
-      }),
-    )
   }
 
-  async function registrarVenta(venta: Omit<Venta, 'id'>) {
-    if (!USE_MOCKS) {
-      try {
-        await apiClient.post('/inventario/ventas', venta)
-        await cargarInventario()
-      } catch {
-        setError('Error al registrar la venta')
-        throw new Error('Error al registrar la venta')
-      }
-      return
-    }
-    const producto = productos.find((current) => current.id === venta.productoId)
-    if (!producto) throw new Error('Producto no encontrado')
-    if ((producto.stockActual ?? producto.stock ?? 0) < venta.cantidad) {
-      throw new Error('Stock insuficiente')
-    }
-    const nueva: Venta = { ...venta, id: `vta-${Date.now()}` }
-    setVentas((prev) => [...prev, nueva])
-    ajustarStock(venta.productoId, venta.cantidad, 'restar')
+  async function registrarVenta(venta: Omit<Venta, 'id'>): Promise<void> {
+    const { fecha: _fecha, precioUnitario: _pu, total: _total, ...ventaInput } = venta
+    const { data } = await apiClient.post<{ venta: Venta }>('/inventario/ventas', ventaInput)
+    setVentas((prev) => [...prev, data.venta])
+    await cargarInventario()
+  }
+
+  async function registrarVentaMultiple(
+    items: Array<{ productoId: string; cantidad: number }>,
+    meta: { sucursalId: SucursalId; metodoPago: MetodoPago; vendedorId: string; notas?: string },
+  ): Promise<void> {
+    const { data } = await apiClient.post<{ ventas: Venta[] }>('/inventario/ventas/multi', { ...meta, items })
+    setVentas((prev) => [...prev, ...data.ventas])
+    await cargarInventario()
   }
 
   return {
@@ -103,7 +93,10 @@ export function useInventario() {
     error,
     agregarProducto,
     actualizarProducto,
+    eliminarProducto,
     ajustarStock,
     registrarVenta,
+    registrarVentaMultiple,
+    cargarVentas,
   }
 }

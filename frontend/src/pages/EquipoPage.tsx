@@ -43,11 +43,11 @@ function cloneDefaultSchedule() {
 }
 
 function isBarberActive(barbero: Barbero) {
-  return barbero.isActive ?? barbero.activo ?? false
+  return barbero.activo ?? false
 }
 
 function isBarberOwner(barbero: Barbero) {
-  return barbero.isOwner ?? barbero.esDueno ?? false
+  return barbero.esDueno ?? false
 }
 
 function scheduleToDraft(horario?: HorarioSemanal) {
@@ -126,9 +126,7 @@ export function EquipoPage() {
       nombre,
       telefono: form.telefono.trim() || undefined,
       activo: form.activo,
-      isActive: form.activo,
       esDueno: form.esDueno,
-      isOwner: form.esDueno,
       porcentajeCasa: Number.isFinite(porcentajeCasa) ? porcentajeCasa : 40,
       colorHex: '#f5c518',
       sucursalId: editingBarber?.sucursalId ?? 's1',

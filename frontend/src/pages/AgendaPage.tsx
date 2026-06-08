@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { LogOut } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
@@ -10,7 +10,7 @@ import { getAvailableSlots } from '../features/agenda/lib/appointments'
 import { useEquipo } from '../features/equipo/hooks/useEquipo'
 import { useServicios } from '../features/servicios/hooks/useServicios'
 import { useAuth } from '../shared/hooks/useAuth'
-import type { MetodoPagoMock, Turno, TurnoFijo } from '../types'
+import type { MetodoPago, SucursalId, Turno, TurnoFijo } from '../types'
 
 type CalendarDay = {
   date: Date
@@ -33,7 +33,7 @@ type ReemplazoFijoForm = {
   clienteNombre: string
   clienteTelefono: string
   servicioId: string
-  metodoPago: '' | MetodoPagoMock
+  metodoPago: '' | MetodoPago
 }
 
 type TurnosListMode = 'selected-day' | 'upcoming' | 'today' | 'past' | 'cancelled' | 'no-show'
@@ -98,8 +98,9 @@ export function AgendaPage() {
   }
 
   const { servicios } = useServicios()
-  const serviciosActivos = servicios.filter((s) => s.isActive ?? true)
+  const serviciosActivos = servicios.filter((s) => s.activo ?? true)
   const { barberos, horarios } = useEquipo()
+  const [selectedSucursalId, setSelectedSucursalId] = useState<SucursalId | ''>('')
   const {
     turnos,
     turnosFijos,
@@ -114,19 +115,18 @@ export function AgendaPage() {
     liberarTurnoFijo,
     generarProximoTurnoFijo,
     editarTurnoFijo,
+    editarTurno,
     eliminarTurnoFijo,
-    pausarTurnoFijo,
-    reanudarTurnoFijo,
-  } = useTurnos(servicios)
+  } = useTurnos(servicios, selectedSucursalId || undefined)
   const [currentDate, setCurrentDate] = useState<Date>(() => new Date())
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [selectedBarberId, setSelectedBarberId] = useState('')
-  const [selectedSucursalId, setSelectedSucursalId] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
   const [turnosListMode, setTurnosListMode] = useState<TurnosListMode>('selected-day')
   const [turnosPage, setTurnosPage] = useState(1)
   const [isTurnoModalOpen, setIsTurnoModalOpen] = useState(false)
   const [isTurnoFijoModalOpen, setIsTurnoFijoModalOpen] = useState(false)
+  const [turnoFijoError, setTurnoFijoError] = useState<string | null>(null)
   const [showModalEditar, setShowModalEditar] = useState(false)
   const [showConfirmarEliminar, setShowConfirmarEliminar] = useState(false)
   const [showTurnosFijos, setShowTurnosFijos] = useState(false)
@@ -138,6 +138,13 @@ export function AgendaPage() {
   const [paymentTurno, setPaymentTurno] = useState<Turno | null>(null)
   const [cancelingTurno, setCancelingTurno] = useState<Turno | null>(null)
   const [assigningTurno, setAssigningTurno] = useState<Turno | null>(null)
+  const [editingTurno, setEditingTurno] = useState<Turno | null>(null)
+  const [editTurnoForm, setEditTurnoForm] = useState<{ barberoId: string; sucursalId: string; hora: string }>({
+    barberoId: '',
+    sucursalId: 's1',
+    hora: '',
+  })
+  const [editTurnoError, setEditTurnoError] = useState<string | null>(null)
   const [turnoFormError, setTurnoFormError] = useState<string | null>(null)
   const [reemplazoFijoForm, setReemplazoFijoForm] = useState<ReemplazoFijoForm>({
     clienteNombre: '',
@@ -240,9 +247,9 @@ export function AgendaPage() {
       serviceDuration: selectedService.duracionMinutos,
       turnos,
       turnosFijos,
-      barberos: barberos,
-      servicios: servicios,
-      horarios: horarios,
+      barberos,
+      servicios,
+      horarios,
     })
 
     if (turnoForm.fecha !== todayKey) return slots
@@ -253,7 +260,7 @@ export function AgendaPage() {
       const [h, m] = slot.start.split(':').map(Number)
       return h * 60 + m > currentMinutes
     })
-  }, [selectedService, turnoForm.barberoId, turnoForm.fecha, turnos, turnosFijos])
+  }, [selectedService, turnoForm.barberoId, turnoForm.fecha, turnos, turnosFijos, barberos, servicios, horarios])
 
   useEffect(() => {
     if (!isTurnoModalOpen) return
@@ -267,32 +274,53 @@ export function AgendaPage() {
     }))
   }, [availableSlots, isTurnoModalOpen, turnoForm.hora])
 
-  useEffect(() => {
-    const hoy = new Date().toISOString().slice(0, 10)
+  const editSelectedService = editingTurno ? servicios.find((s) => s.id === editingTurno.servicioId) : undefined
+  const editAvailableSlots = useMemo(() => {
+    if (!editingTurno || !editSelectedService || !editTurnoForm.barberoId) return []
+    return getAvailableSlots({
+      barberId: editTurnoForm.barberoId,
+      date: editingTurno.fecha ?? '',
+      serviceDuration: editSelectedService.duracionMinutos,
+      turnos: turnos.filter((t) => t.id !== editingTurno.id),
+      turnosFijos: turnosFijos.filter((tf) => tf.id !== editingTurno.turnoFijoId),
+      barberos,
+      servicios,
+      horarios,
+    })
+  }, [editingTurno, editTurnoForm.barberoId, editSelectedService, turnos, turnosFijos, barberos, servicios, horarios])
 
+  useEffect(() => {
+    if (!editingTurno) return
+    const stillAvailable = editAvailableSlots.some((slot) => slot.start === editTurnoForm.hora)
+    if (stillAvailable) return
+    setEditTurnoForm((prev) => ({ ...prev, hora: editAvailableSlots[0]?.start ?? '' }))
+  }, [editAvailableSlots, editingTurno])
+
+  const generatedFijosRef = useRef(new Set<string>())
+
+  useEffect(() => {
+    if (turnosFijos.length === 0) return
+    const hoy = new Date().toISOString().slice(0, 10)
     turnosFijos
       .filter((turnoFijo) => {
-        if (!turnoFijo.activo) return false
-        if (turnoFijo.pausadoHasta && turnoFijo.pausadoHasta >= hoy) return false
-        return turnoFijo.fechasAgendadas.some(
-          (fecha) =>
-            fecha >= hoy &&
-            !turnos.some((turno) => turno.turnoFijoId === turnoFijo.id && turno.fecha === fecha && turno.estado !== 'CANCELADO'),
-        )
+        if (generatedFijosRef.current.has(turnoFijo.id)) return false
+        return turnoFijo.fechasAgendadas.some((f) => f >= hoy)
       })
-      .forEach((turnoFijo) => generarProximoTurnoFijo(turnoFijo.id))
-  }, [])
+      .forEach((turnoFijo) => {
+        generatedFijosRef.current.add(turnoFijo.id)
+        generarProximoTurnoFijo(turnoFijo.id)
+      })
+  }, [turnosFijos])
 
   function getTurnosForDate(dateKey: string) {
     return filteredTurnos.filter((turno) => turno.fecha === dateKey)
   }
 
-  function handleNewTurno(event: FormEvent<HTMLFormElement>) {
+  async function handleNewTurno(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setTurnoFormError(null)
-
     try {
-      crearTurno({
+      await crearTurno({
         clientId: `cliente-${Date.now()}`,
         sucursalId: turnoForm.sucursalId as import('../types').SucursalId,
         barberId: turnoForm.barberoId,
@@ -306,8 +334,8 @@ export function AgendaPage() {
       setTurnosPage(1)
       setIsTurnoModalOpen(false)
       setTurnoForm((current) => ({ ...current, clienteNombre: '', clienteTelefono: '' }))
-    } catch (appointmentError) {
-      setTurnoFormError(appointmentError instanceof Error ? appointmentError.message : 'No se pudo crear el turno.')
+    } catch (err) {
+      setTurnoFormError(err instanceof Error ? err.message : 'No se pudo crear el turno.')
     }
   }
 
@@ -340,6 +368,20 @@ export function AgendaPage() {
     return fechasOrdenadas.filter((fecha) => fecha >= hoy)[0] ?? fechasOrdenadas[0] ?? hoy
   }
 
+  function computeProximaFechaActual(fechasAgendadas: string[], hora: string): string {
+    const ahora = new Date()
+    const hoy = toDateKey(ahora)
+    const minutosAhora = ahora.getHours() * 60 + ahora.getMinutes()
+    const [hh, mm] = hora.split(':').map(Number)
+    const minutosHora = (hh ?? 0) * 60 + (mm ?? 0)
+    const fechasOrdenadas = [...fechasAgendadas].sort()
+    for (const fecha of fechasOrdenadas) {
+      if (fecha > hoy) return fecha
+      if (fecha === hoy && minutosHora > minutosAhora) return fecha
+    }
+    return fechasOrdenadas[0] ?? hoy
+  }
+
   function getWhatsAppUrl(turno: Turno, message: string) {
     const phone = turno.clienteTelefono?.replace(/\D/g, '') ?? ''
     const encodedMessage = encodeURIComponent(message)
@@ -354,7 +396,7 @@ export function AgendaPage() {
     return `Hola ${turno.clienteNombre ?? ''}, te avisamos que tu turno en BarberHouse del ${turno.fecha ?? selectedDate ?? ''} a las ${turno.hora ?? ''} fue cancelado. Disculpa las molestias.`
   }
 
-  function markAsPaid(turno: Turno, metodoPago: MetodoPagoMock) {
+  function markAsPaid(turno: Turno, metodoPago: MetodoPago) {
     marcarRealizado(turno.id, metodoPago)
     setPaymentTurno(null)
     setSelectedTurno(null)
@@ -414,17 +456,15 @@ export function AgendaPage() {
     setSelectedTurno(null)
   }
 
-  function handleGuardarTurnoFijo(datos: Omit<TurnoFijo, 'id' | 'proximaFecha'>) {
-    const nuevoFijo: TurnoFijo = {
-      ...datos,
-      id: `tf-${Date.now()}`,
-      proximaFecha: getProximaFecha(datos.fechasAgendadas),
+  async function handleGuardarTurnoFijo(datos: Omit<TurnoFijo, 'id' | 'proximaFecha'>) {
+    setTurnoFijoError(null)
+    try {
+      await crearTurnoFijo(datos)
+      setIsTurnoFijoModalOpen(false)
+      setShowTurnosFijos(true)
+    } catch (err) {
+      setTurnoFijoError(err instanceof Error ? err.message : 'No se pudo crear el turno fijo')
     }
-
-    crearTurnoFijo(nuevoFijo)
-    generarProximoTurnoFijo(nuevoFijo.id)
-    setIsTurnoFijoModalOpen(false)
-    setShowTurnosFijos(true)
   }
 
   function handleEditarTurnoFijo(turnoFijo: TurnoFijo) {
@@ -437,13 +477,52 @@ export function AgendaPage() {
     setShowConfirmarEliminar(true)
   }
 
-  function handleGuardarEdicion(id: string, datos: Partial<TurnoFijo>) {
-    editarTurnoFijo(id, {
-      ...datos,
-      proximaFecha: datos.fechasAgendadas ? getProximaFecha(datos.fechasAgendadas) : datos.proximaFecha,
-    })
+  function handleGuardarEdicion(id: string, datos: Partial<TurnoFijo>, cascade: boolean) {
+    editarTurnoFijo(
+      id,
+      {
+        ...datos,
+        proximaFecha: datos.fechasAgendadas ? getProximaFecha(datos.fechasAgendadas) : datos.proximaFecha,
+      },
+      cascade,
+    )
     setShowModalEditar(false)
     setTurnoFijoSeleccionado(null)
+  }
+
+  function openEditTurno(turno: Turno) {
+    setEditingTurno(turno)
+    setEditTurnoForm({
+      barberoId: turno.barberoId ?? '',
+      sucursalId: turno.sucursalId ?? 's1',
+      hora: turno.hora ?? '',
+    })
+    setEditTurnoError(null)
+  }
+
+  async function handleGuardarEditarTurno() {
+    if (!editingTurno) return
+    setEditTurnoError(null)
+    const servicio = servicios.find((s) => s.id === editingTurno.servicioId)
+    const horaFin = servicio
+      ? (() => {
+          const [h, m] = editTurnoForm.hora.split(':').map(Number)
+          const total = (h ?? 0) * 60 + (m ?? 0) + servicio.duracionMinutos
+          return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`
+        })()
+      : undefined
+    try {
+      await editarTurno(editingTurno.id, {
+        hora: editTurnoForm.hora,
+        barberoId: editTurnoForm.barberoId,
+        sucursalId: editTurnoForm.sucursalId as import('../types').SucursalId,
+        horaFin,
+      })
+      setEditingTurno(null)
+      setSelectedTurno(null)
+    } catch (err) {
+      setEditTurnoError(err instanceof Error ? err.message : 'Error al guardar el turno')
+    }
   }
 
   function handleConfirmarEliminar() {
@@ -521,7 +600,10 @@ export function AgendaPage() {
               const isToday = isSameDay(calendarDay.date, today)
               const isSelected = selectedDate === dateKey
               const isHighlighted = calendarDay.isCurrentMonth && (isToday || isSelected)
-              const dayTurnos = getTurnosForDate(dateKey)
+              const dayTurnos = getTurnosForDate(dateKey).filter((t) => t.estado !== 'CANCELADO' && t.estado !== 'cancelado' && t.estado !== 'AUSENTE_FIJO')
+              const generatedFijoIds = new Set(dayTurnos.filter((t) => t.turnoFijoId).map((t) => t.turnoFijoId!))
+              const ungeneratedFijos = turnosFijos.filter((tf) => tf.fechasAgendadas.includes(dateKey) && !generatedFijoIds.has(tf.id))
+              const dayCount = dayTurnos.length + ungeneratedFijos.length
 
               return (
                 <button
@@ -549,9 +631,9 @@ export function AgendaPage() {
                   >
                   {calendarDay.date.getDate()}
                   </span>
-                  {calendarDay.isCurrentMonth && dayTurnos.length > 0 ? (
+                  {calendarDay.isCurrentMonth && dayCount > 0 ? (
                     <span className="absolute right-2 top-2 rounded-full bg-[#f5c518] px-2 py-0.5 text-xs font-bold text-black">
-                      {dayTurnos.length}
+                      {dayCount}
                     </span>
                   ) : null}
                 </button>
@@ -581,7 +663,7 @@ export function AgendaPage() {
             <select
               className="min-w-[180px] rounded-lg border border-[#2a2a2a] bg-[#0f0f0f] px-4 py-2 text-left text-sm text-white"
               onChange={(event) => {
-                setSelectedSucursalId(event.target.value)
+                setSelectedSucursalId(event.target.value as SucursalId | '')
                 setTurnosPage(1)
               }}
               value={selectedSucursalId}
@@ -594,7 +676,13 @@ export function AgendaPage() {
               className="rounded-lg bg-[#f5c518] px-4 py-2 font-bold text-black transition hover:bg-[#f5c518]/90"
               onClick={() => {
                 setTurnoFormError(null)
-                setTurnoForm((current) => ({ ...current, fecha: selectedDate ?? toDateKey(today) }))
+                setTurnoForm((current) => ({
+                  ...current,
+                  barberoId: current.barberoId || barberos[0]?.id || '',
+                  servicioId: current.servicioId || serviciosActivos[0]?.id || servicios[0]?.id || '',
+                  fecha: selectedDate ?? toDateKey(today),
+                  sucursalId: selectedSucursalId,
+                }))
                 setIsTurnoModalOpen(true)
               }}
               type="button"
@@ -636,14 +724,7 @@ export function AgendaPage() {
             >
               <span className="font-bold text-white">Turnos Fijos Activos</span>
               <span className="rounded-full bg-[#1a1700] px-2 py-0.5 text-xs font-bold text-[#f5c518]">
-                {turnosFijos.filter((tf) => {
-                  const fecha = selectedDate ?? todayKey
-                  return (
-                    tf.activo &&
-                    (!tf.pausadoHasta || tf.pausadoHasta < fecha) &&
-                    tf.fechasAgendadas.includes(fecha)
-                  )
-                }).length}
+                {turnosFijos.filter((tf) => tf.fechasAgendadas.includes(selectedDate ?? todayKey)).length}
               </span>
               <span className="text-sm text-[#f5c518]">{showTurnosFijos ? 'Ocultar' : 'Ver'}</span>
             </button>
@@ -660,7 +741,6 @@ export function AgendaPage() {
 
           {(() => {
             const porVencer = turnosFijos.filter((tf) => {
-              if (!tf.activo || (tf.pausadoHasta && tf.pausadoHasta >= todayKey)) return false
               return tf.fechasAgendadas.filter((f) => f >= todayKey).length <= 2
             })
             if (porVencer.length === 0) return null
@@ -709,9 +789,8 @@ export function AgendaPage() {
                 </thead>
                 <tbody>
                   {fijosPaginados.map((turnoFijo) => {
-                    const isPaused = Boolean(turnoFijo.pausadoHasta && turnoFijo.pausadoHasta >= todayKey)
                     const fechasFuturas = turnoFijo.fechasAgendadas.filter((f) => f >= todayKey)
-                    const pocasFechas = !isPaused && turnoFijo.activo && fechasFuturas.length <= 2
+                    const pocasFechas = fechasFuturas.length <= 2
 
                     return (
                       <tr className={`border-b text-white ${pocasFechas ? 'border-amber-500/30 bg-amber-500/5' : 'border-[#111111]'}`} key={turnoFijo.id}>
@@ -742,15 +821,15 @@ export function AgendaPage() {
                             ) : null}
                           </div>
                         </td>
-                        <td className="py-3 text-[#a0a0a0]">{turnoFijo.proximaFecha}</td>
+                        <td className="py-3 text-[#a0a0a0]">{computeProximaFechaActual(turnoFijo.fechasAgendadas, turnoFijo.hora)}</td>
                         <td className="py-3">
-                          <span className={`rounded-full px-3 py-1 text-xs font-bold ${isPaused ? 'bg-[#2a1618] text-[#fca5a5]' : 'bg-[#123524] text-[#86efac]'}`}>
-                            {isPaused ? 'Pausado' : 'Activo'}
+                          <span className="rounded-full bg-[#123524] px-3 py-1 text-xs font-bold text-[#86efac]">
+                            Activo
                           </span>
                         </td>
                         <td className="py-3">
                           <div className="flex flex-wrap gap-2">
-                          {!isPaused ? (() => {
+                          {(() => {
                             const turnoProximo = turnos.find(
                               (t) =>
                                 t.turnoFijoId === turnoFijo.id &&
@@ -766,24 +845,7 @@ export function AgendaPage() {
                                 No viene
                               </button>
                             ) : null
-                          })() : null}
-                          {isPaused ? (
-                            <button
-                              className="rounded-lg border border-[#2f2f2f] bg-[#111111] px-3 py-2 text-xs font-bold text-white"
-                              onClick={() => reanudarTurnoFijo(turnoFijo.id)}
-                              type="button"
-                            >
-                              Reanudar
-                            </button>
-                          ) : (
-                            <button
-                              className="rounded-lg border border-[#2f2f2f] bg-[#111111] px-3 py-2 text-xs font-bold text-white"
-                              onClick={() => pausarTurnoFijo(turnoFijo.id, turnoFijo.proximaFecha)}
-                              type="button"
-                            >
-                              Pausar
-                            </button>
-                          )}
+                          })()}
                             <button
                               className="rounded-lg border border-[#f5c518] bg-transparent px-3 py-2 text-xs font-bold text-[#f5c518] transition hover:bg-[#f5c518]/10"
                               onClick={() => handleEditarTurnoFijo(turnoFijo)}
@@ -870,21 +932,33 @@ export function AgendaPage() {
             <p className="mt-4 text-[#a0a0a0]">No hay turnos para este filtro.</p>
           ) : null}
           <div className="mt-4 flex flex-wrap gap-3">
-            {paginatedTurnos.map((turno) => (
-              <button
-                className="inline-flex w-fit items-center rounded-lg border border-[#242424] bg-[#111111] px-4 py-3 text-left font-bold text-white transition hover:border-[#f5c518]/60 hover:bg-[#242424]"
-                key={turno.id}
-                onClick={() => setSelectedTurno(turno)}
-                type="button"
-              >
-                <span>{turno.hora} · {turno.clienteNombre}</span>
-                {turno.estado === 'AUSENTE_FIJO' ? (
-                  <span className="ml-3 rounded-full border border-purple-500/30 bg-purple-500/20 px-2 py-0.5 text-xs font-bold text-purple-400">
-                    TURNO LIBRE
-                  </span>
-                ) : null}
-              </button>
-            ))}
+            {paginatedTurnos.map((turno) => {
+              const isRealizado = turno.estado === 'REALIZADO'
+              return (
+                <button
+                  className={`inline-flex w-fit items-center rounded-lg border px-4 py-3 text-left font-bold transition ${
+                    isRealizado
+                      ? 'border-[#166534]/60 bg-[#052e16]/60 text-white/60 hover:border-[#166534] hover:bg-[#052e16]'
+                      : 'border-[#242424] bg-[#111111] text-white hover:border-[#f5c518]/60 hover:bg-[#242424]'
+                  }`}
+                  key={turno.id}
+                  onClick={() => setSelectedTurno(turno)}
+                  type="button"
+                >
+                  <span>{turno.hora} · {turno.clienteNombre}</span>
+                  {isRealizado ? (
+                    <span className="ml-3 rounded-full border border-green-800 bg-green-950 px-2 py-0.5 text-xs font-bold text-green-400">
+                      REALIZADO
+                    </span>
+                  ) : null}
+                  {turno.estado === 'AUSENTE_FIJO' ? (
+                    <span className="ml-3 rounded-full border border-purple-500/30 bg-purple-500/20 px-2 py-0.5 text-xs font-bold text-purple-400">
+                      TURNO LIBRE
+                    </span>
+                  ) : null}
+                </button>
+              )
+            })}
           </div>
           {displayedTurnos.length > turnosPerPage ? (
             <div className="mt-4 flex items-center justify-between gap-3 text-sm text-[#a0a0a0]">
@@ -993,6 +1067,15 @@ export function AgendaPage() {
                   El cliente fijo no viene — liberar turno
                 </button>
               ) : null}
+              {(selectedTurno.estado === 'PENDIENTE' || selectedTurno.estado === 'CONFIRMADO') ? (
+                <button
+                  className="col-span-full rounded-lg border border-[#2a2a2a] bg-[#111111] px-4 py-3 text-sm font-bold text-white transition hover:border-[#f5c518]/50"
+                  onClick={() => openEditTurno(selectedTurno)}
+                  type="button"
+                >
+                  Editar turno
+                </button>
+              ) : null}
               <a
                 className="rounded-lg border border-[#3f4c2a] bg-[#202713] px-4 py-2.5 text-center text-sm font-bold text-[#f5c518] transition hover:border-[#f5c518]"
                 href={getWhatsAppUrl(selectedTurno, getReminderMessage(selectedTurno))}
@@ -1017,6 +1100,96 @@ export function AgendaPage() {
               </button>
             </div>
             )}
+          </section>
+        </div>
+      ) : null}
+
+      {editingTurno ? (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4">
+          <section className="w-full max-w-lg rounded-xl border border-[#2f2f2f] bg-[#050505] text-white shadow-2xl">
+            <div className="flex items-start justify-between border-b border-[#242424] px-6 py-5">
+              <div>
+                <h2 className="text-2xl font-bold">Editar turno</h2>
+                <p className="mt-1 text-sm text-[#a0a0a0]">
+                  {editingTurno.clienteNombre} · {editingTurno.fecha}
+                </p>
+              </div>
+              <button
+                aria-label="Cerrar edición"
+                className="text-3xl leading-none text-[#a0a0a0] hover:text-white"
+                onClick={() => setEditingTurno(null)}
+                type="button"
+              >
+                ×
+              </button>
+            </div>
+            <div className="space-y-4 px-6 py-5">
+              <select
+                className="w-full rounded-lg border border-[#3f3f3f] bg-[#111111] px-4 py-3 text-white"
+                onChange={(e) => setEditTurnoForm((prev) => ({ ...prev, barberoId: e.target.value }))}
+                value={editTurnoForm.barberoId}
+              >
+                {barberos.map((b) => (
+                  <option key={b.id} value={b.id}>{b.nombre}</option>
+                ))}
+              </select>
+              <select
+                className="w-full rounded-lg border border-[#3f3f3f] bg-[#111111] px-4 py-3 text-white"
+                onChange={(e) => setEditTurnoForm((prev) => ({ ...prev, sucursalId: e.target.value }))}
+                value={editTurnoForm.sucursalId}
+              >
+                <option value="s1">Sucursal 1</option>
+                <option value="s2">Sucursal 2</option>
+              </select>
+              <div>
+                <label className="mb-2 block text-xs font-bold uppercase tracking-widest text-[#a0a0a0]">
+                  Horario disponible
+                  {editTurnoForm.hora ? (
+                    <span className="ml-2 rounded-full bg-[#f5c518] px-2 py-0.5 text-black normal-case">{editTurnoForm.hora}</span>
+                  ) : null}
+                </label>
+                {editAvailableSlots.length === 0 ? (
+                  <p className="text-sm text-[#a0a0a0]">
+                    Sin horarios disponibles para este barbero en la fecha del turno. Verificá que tenga horario configurado ese día.
+                  </p>
+                ) : (
+                  <div className="grid max-h-44 grid-cols-3 gap-2 overflow-y-auto sm:grid-cols-4">
+                    {editAvailableSlots.map((slot) => (
+                      <button
+                        className={`rounded-lg border px-3 py-2 text-sm font-bold transition ${
+                          editTurnoForm.hora === slot.start
+                            ? 'border-[#f5c518] bg-[#1a1700] text-[#f5c518]'
+                            : 'border-[#2f2f2f] bg-[#111111] text-white hover:border-[#f5c518]/70'
+                        }`}
+                        key={slot.start}
+                        onClick={() => setEditTurnoForm((prev) => ({ ...prev, hora: slot.start }))}
+                        type="button"
+                      >
+                        {slot.start}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {editTurnoError ? <p className="text-sm font-bold text-red-300">{editTurnoError}</p> : null}
+            </div>
+            <div className="grid grid-cols-2 gap-3 border-t border-[#242424] bg-[#0a0a0a] px-6 py-5">
+              <button
+                className="rounded-lg bg-[#3f3f3f] px-4 py-3"
+                onClick={() => setEditingTurno(null)}
+                type="button"
+              >
+                Cancelar
+              </button>
+              <button
+                className="rounded-lg bg-[#f5c518] px-4 py-3 font-bold text-black disabled:opacity-50"
+                disabled={!editTurnoForm.hora}
+                onClick={handleGuardarEditarTurno}
+                type="button"
+              >
+                Guardar
+              </button>
+            </div>
           </section>
         </div>
       ) : null}
@@ -1059,7 +1232,7 @@ export function AgendaPage() {
               <select
                 className="w-full rounded-lg border border-[#3f3f3f] bg-[#111111] px-4 py-3 text-white"
                 onChange={(event) =>
-                  setReemplazoFijoForm((current) => ({ ...current, metodoPago: event.target.value as '' | MetodoPagoMock }))
+                  setReemplazoFijoForm((current) => ({ ...current, metodoPago: event.target.value as '' | MetodoPago }))
                 }
                 value={reemplazoFijoForm.metodoPago}
               >
@@ -1294,10 +1467,14 @@ export function AgendaPage() {
 
       <ModalNuevoTurnoFijo
         barberos={barberos}
+        externalError={turnoFijoError}
+        horarios={horarios}
         isOpen={isTurnoFijoModalOpen}
-        onClose={() => setIsTurnoFijoModalOpen(false)}
+        onClose={() => { setIsTurnoFijoModalOpen(false); setTurnoFijoError(null) }}
         onGuardar={handleGuardarTurnoFijo}
         servicios={servicios}
+        turnos={turnos}
+        turnosFijos={turnosFijos}
       />
 
       {turnoFijoSeleccionado ? (
@@ -1311,6 +1488,7 @@ export function AgendaPage() {
           onGuardar={handleGuardarEdicion}
           servicios={servicios}
           turnoFijo={turnoFijoSeleccionado}
+          turnos={turnos}
         />
       ) : null}
 

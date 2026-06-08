@@ -11,9 +11,7 @@ export type BarberoData = {
   colorHex?: string
   sucursalId?: string
   fechaIngreso?: string
-  isActive: boolean
   activo: boolean
-  isOwner: boolean
   esDueno: boolean
 }
 
@@ -39,10 +37,8 @@ function docToBarbero(doc: FirebaseFirestore.DocumentSnapshot): BarberoData {
     colorHex: d['colorHex'],
     sucursalId: d['sucursalId'],
     fechaIngreso: d['fechaIngreso'],
-    isActive: d['isActive'] ?? true,
-    activo: d['isActive'] ?? true,
-    isOwner: d['isOwner'] ?? false,
-    esDueno: d['isOwner'] ?? false,
+    activo: d['activo'] ?? true,
+    esDueno: d['esDueno'] ?? false,
   }
 }
 
@@ -65,12 +61,12 @@ export class EquipoRepository {
     return snap.docs.map(docToHorario)
   }
 
-  async create(input: BarberoInput): Promise<BarberoData> {
+  async insertBarbero(input: BarberoInput): Promise<BarberoData> {
     const data: Record<string, unknown> = {
       nombre: input.nombre,
       porcentajeCasa: input.porcentajeCasa,
-      isActive: input.isActive ?? true,
-      isOwner: input.isOwner ?? false,
+      activo: input.activo ?? true,
+      esDueno: input.esDueno ?? false,
       creadoEn: FieldValue.serverTimestamp(),
     }
     if (input.telefono !== undefined) data['telefono'] = input.telefono
@@ -83,15 +79,13 @@ export class EquipoRepository {
     return docToBarbero(await ref.get())
   }
 
-  async update(id: string, input: BarberoUpdateInput): Promise<BarberoData | null> {
+  async patchBarbero(id: string, input: BarberoUpdateInput): Promise<BarberoData | null> {
     const ref = firestore.collection('barberos').doc(id)
     const doc = await ref.get()
     if (!doc.exists) return null
 
-    // Ignorar aliases del frontend; omitir undefined (Firestore no los acepta)
-    const { activo: _activo, esDueno: _esDueno, ...rest } = input as BarberoUpdateInput & { activo?: boolean; esDueno?: boolean }
     const payload: Record<string, unknown> = { actualizadoEn: FieldValue.serverTimestamp() }
-    for (const [key, value] of Object.entries(rest)) {
+    for (const [key, value] of Object.entries(input)) {
       if (value !== undefined) payload[key] = value
     }
 
@@ -99,19 +93,23 @@ export class EquipoRepository {
     return docToBarbero(await ref.get())
   }
 
-  async delete(id: string): Promise<boolean> {
+  async deleteBarbero(id: string): Promise<boolean> {
     const doc = await firestore.collection('barberos').doc(id).get()
     if (!doc.exists) return false
     await firestore.collection('barberos').doc(id).delete()
     return true
   }
 
-  async toggle(id: string): Promise<BarberoData | null> {
+  async deleteHorario(barberoId: string): Promise<void> {
+    await firestore.collection('horarios').doc(barberoId).delete()
+  }
+
+  async patchBarberoActivo(id: string): Promise<BarberoData | null> {
     const ref = firestore.collection('barberos').doc(id)
     const doc = await ref.get()
     if (!doc.exists) return null
-    const current = doc.data()!['isActive'] ?? true
-    await ref.update({ isActive: !current, actualizadoEn: FieldValue.serverTimestamp() })
+    const current = doc.data()!['activo'] ?? true
+    await ref.update({ activo: !current, actualizadoEn: FieldValue.serverTimestamp() })
     return docToBarbero(await ref.get())
   }
 

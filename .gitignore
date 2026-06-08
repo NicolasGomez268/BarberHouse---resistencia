@@ -3,12 +3,13 @@ node_modules
 
 # Builds
 dist
-lib
+functions/lib
 
 # Variables de entorno (nunca subir secrets)
 .env
 .env.local
 .env.*.local
+.env.production
 
 # Firebase — output de emuladores y logs de debug
 .emulator-data/

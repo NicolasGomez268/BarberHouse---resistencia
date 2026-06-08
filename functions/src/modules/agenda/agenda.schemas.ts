@@ -4,7 +4,7 @@ export const sucursalIdSchema = z.enum(['s1', 's2'])
 
 export const estadoSchema = z.enum(['PENDIENTE', 'CONFIRMADO', 'REALIZADO', 'CANCELADO', 'NO_ASISTIO', 'AUSENTE_FIJO'])
 
-export const metodoPagoSchema = z.enum(['efectivo', 'transferencia', 'tarjeta', 'EFECTIVO', 'TRANSFERENCIA', 'TARJETA'])
+export const metodoPagoSchema = z.enum(['EFECTIVO', 'TRANSFERENCIA', 'TARJETA'])
 
 // GET /agenda — query params
 export const turnosFiltersSchema = z.object({
@@ -83,22 +83,25 @@ export const createTurnoFijoSchema = z.object({
   clienteTelefono: z.string().optional(),
   hora: z.string().regex(/^\d{2}:\d{2}$/),
   fechasAgendadas: z.array(z.string()).min(1),
-  activo: z.boolean(),
   proximaFecha: z.string(),
   diaSemana: z.number().int().min(0).max(6).optional(),
-  pausadoHasta: z.string().optional(),
 })
 export type CreateTurnoFijoInput = z.infer<typeof createTurnoFijoSchema>
 
 // PATCH /agenda/fijos/:id
-export const updateTurnoFijoSchema = createTurnoFijoSchema.partial()
+export const updateTurnoFijoSchema = createTurnoFijoSchema.partial().extend({
+  cascadeToFutureTurnos: z.boolean().optional(),
+})
 export type UpdateTurnoFijoInput = z.infer<typeof updateTurnoFijoSchema>
 
-// PATCH /agenda/fijos/:id/pausar
-export const pausarTurnoFijoSchema = z.object({
-  hasta: z.string().min(1),
+// PATCH /agenda/:id
+export const updateTurnoSchema = z.object({
+  hora: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+  horaFin: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+  barberoId: z.string().min(1).optional(),
+  sucursalId: sucursalIdSchema.optional(),
 })
-export type PausarTurnoFijoInput = z.infer<typeof pausarTurnoFijoSchema>
+export type UpdateTurnoInput = z.infer<typeof updateTurnoSchema>
 
 // TurnoFijo devuelto por la API
 export const turnoFijoDataSchema = createTurnoFijoSchema.extend({

@@ -1,13 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { CajaMovimiento, MetodoPago, SucursalId } from '../../../types'
-import { useCaja } from '../hooks/useCaja'
+import type { CajaDiariaResumen, CajaMovimiento, MetodoPago } from '../../../types'
 
-type CajaDiariaProps = {
-  fecha: string
-  sucursalId: SucursalId
-}
-
-const methods: MetodoPago[] = ['efectivo', 'transferencia', 'tarjeta']
+const methods: MetodoPago[] = ['EFECTIVO', 'TRANSFERENCIA', 'TARJETA']
 const ITEMS_POR_PAGINA = 10
 
 function money(value: number) {
@@ -15,30 +9,20 @@ function money(value: number) {
 }
 
 function methodLabel(method: MetodoPago) {
-  return method === 'efectivo' ? 'Efectivo' : method === 'transferencia' ? 'Transferencia' : 'Tarjeta'
+  return method === 'EFECTIVO' ? 'Efectivo' : method === 'TRANSFERENCIA' ? 'Transferencia' : 'Tarjeta'
 }
 
-export function CajaDiaria({ fecha, sucursalId }: CajaDiariaProps) {
-  const { calcularCajaDiaria } = useCaja()
-  const data = calcularCajaDiaria(fecha, sucursalId)
+export function CajaDiaria({ data }: { data: CajaDiariaResumen }) {
   const [busqueda, setBusqueda] = useState('')
   const [pagina, setPagina] = useState(1)
 
   const movimientosFiltrados = useMemo(() => {
     const texto = busqueda.trim().toLowerCase()
-
-    if (!texto) {
-      return data.movimientos
-    }
-
+    if (!texto) return data.movimientos
     return data.movimientos.filter((movement) => {
       if (movement.tipo === 'servicio') {
-        return (
-          movement.descripcion.toLowerCase().includes(texto) ||
-          movement.detalle.toLowerCase().includes(texto)
-        )
+        return movement.descripcion.toLowerCase().includes(texto) || movement.detalle.toLowerCase().includes(texto)
       }
-
       return movement.descripcion.toLowerCase().includes(texto)
     })
   }, [busqueda, data.movimientos])
@@ -50,13 +34,8 @@ export function CajaDiaria({ fecha, sucursalId }: CajaDiariaProps) {
   const desdeMovimiento = movimientosFiltrados.length === 0 ? 0 : inicio + 1
   const hastaMovimiento = Math.min(inicio + ITEMS_POR_PAGINA, movimientosFiltrados.length)
 
-  useEffect(() => {
-    setPagina(1)
-  }, [busqueda])
-
-  useEffect(() => {
-    setPagina((current) => Math.min(current, totalPaginas))
-  }, [totalPaginas])
+  useEffect(() => { setPagina(1) }, [busqueda])
+  useEffect(() => { setPagina((current) => Math.min(current, totalPaginas)) }, [totalPaginas])
 
   return (
     <div className="space-y-5">
@@ -88,32 +67,13 @@ export function CajaDiaria({ fecha, sucursalId }: CajaDiariaProps) {
                 <MovementRow key={movement.id} movement={movement} />
               ))}
             </div>
-
             {movimientosFiltrados.length > ITEMS_POR_PAGINA ? (
               <div className="mt-4 flex flex-col gap-3 text-sm text-text-secondary sm:flex-row sm:items-center sm:justify-between">
-                <span>
-                  Mostrando {desdeMovimiento}-{hastaMovimiento} de {movimientosFiltrados.length} movimientos
-                </span>
+                <span>Mostrando {desdeMovimiento}-{hastaMovimiento} de {movimientosFiltrados.length} movimientos</span>
                 <div className="flex items-center gap-2">
-                  <button
-                    className="rounded-lg bg-surface-deep px-3 py-2 font-bold text-text-primary disabled:cursor-not-allowed disabled:opacity-40"
-                    disabled={paginaSegura === 1}
-                    onClick={() => setPagina((current) => Math.max(1, current - 1))}
-                    type="button"
-                  >
-                    Anterior
-                  </button>
-                  <span className="rounded-lg bg-background px-3 py-2">
-                    Pagina {paginaSegura} de {totalPaginas}
-                  </span>
-                  <button
-                    className="rounded-lg bg-surface-deep px-3 py-2 font-bold text-text-primary disabled:cursor-not-allowed disabled:opacity-40"
-                    disabled={paginaSegura === totalPaginas}
-                    onClick={() => setPagina((current) => Math.min(totalPaginas, current + 1))}
-                    type="button"
-                  >
-                    Siguiente
-                  </button>
+                  <button className="rounded-lg bg-surface-deep px-3 py-2 font-bold text-text-primary disabled:cursor-not-allowed disabled:opacity-40" disabled={paginaSegura === 1} onClick={() => setPagina((current) => Math.max(1, current - 1))} type="button">Anterior</button>
+                  <span className="rounded-lg bg-background px-3 py-2">Pagina {paginaSegura} de {totalPaginas}</span>
+                  <button className="rounded-lg bg-surface-deep px-3 py-2 font-bold text-text-primary disabled:cursor-not-allowed disabled:opacity-40" disabled={paginaSegura === totalPaginas} onClick={() => setPagina((current) => Math.min(totalPaginas, current + 1))} type="button">Siguiente</button>
                 </div>
               </div>
             ) : null}

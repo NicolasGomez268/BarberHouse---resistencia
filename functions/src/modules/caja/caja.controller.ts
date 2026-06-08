@@ -1,15 +1,71 @@
 import type { Request, Response } from 'express'
-import { movimientoCajaSchema } from './caja.schemas'
+import {
+  cajaDiariaParamsSchema,
+  liquidacionParamsSchema,
+  metricasParamsSchema,
+  validarPinSchema,
+} from './caja.schemas'
 import { cajaService } from './caja.service'
 
 export class CajaController {
-  list(_request: Request, response: Response) {
-    response.json(cajaService.list())
+  async validarPin(request: Request, response: Response) {
+    try {
+      const parsed = validarPinSchema.safeParse(request.body)
+      if (!parsed.success) {
+        response.status(400).json({ error: 'Datos inválidos', details: parsed.error.issues })
+        return
+      }
+      const sucursales = await cajaService.validarPin(parsed.data.pin)
+      if (!sucursales) {
+        response.status(401).json({ error: 'PIN incorrecto. Intentá nuevamente.' })
+        return
+      }
+      response.json({ sucursales })
+    } catch {
+      response.status(500).json({ error: 'Error al validar el PIN' })
+    }
   }
 
-  create(request: Request, response: Response) {
-    const input = movimientoCajaSchema.parse(request.body)
-    response.status(201).json(cajaService.create(input))
+  async cajaDiaria(request: Request, response: Response) {
+    try {
+      const parsed = cajaDiariaParamsSchema.safeParse(request.query)
+      if (!parsed.success) {
+        response.status(400).json({ error: 'Parámetros inválidos', details: parsed.error.issues })
+        return
+      }
+      const data = await cajaService.calcularCajaDiaria(parsed.data)
+      response.json(data)
+    } catch {
+      response.status(500).json({ error: 'Error al calcular la caja diaria' })
+    }
+  }
+
+  async liquidacion(request: Request, response: Response) {
+    try {
+      const parsed = liquidacionParamsSchema.safeParse(request.query)
+      if (!parsed.success) {
+        response.status(400).json({ error: 'Parámetros inválidos', details: parsed.error.issues })
+        return
+      }
+      const data = await cajaService.calcularLiquidacion(parsed.data)
+      response.json(data)
+    } catch {
+      response.status(500).json({ error: 'Error al calcular la liquidación' })
+    }
+  }
+
+  async metricas(request: Request, response: Response) {
+    try {
+      const parsed = metricasParamsSchema.safeParse(request.query)
+      if (!parsed.success) {
+        response.status(400).json({ error: 'Parámetros inválidos', details: parsed.error.issues })
+        return
+      }
+      const data = await cajaService.calcularMetricas(parsed.data)
+      response.json(data)
+    } catch {
+      response.status(500).json({ error: 'Error al calcular las métricas' })
+    }
   }
 }
 

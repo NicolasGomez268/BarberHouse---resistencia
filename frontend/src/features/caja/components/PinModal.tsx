@@ -1,76 +1,83 @@
-import { Delete } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import type { KeyboardEvent } from 'react'
 
 type PinModalProps = {
   error: string | null
-  onSubmit: (pin: string) => string | null
+  onSubmit: (pin: string) => Promise<string | null>
 }
-
-const numbers = ['1', '2', '3', '4', '5', '6', '7', '8', '9']
 
 export function PinModal({ error, onSubmit }: PinModalProps) {
   const [pin, setPin] = useState('')
   const [localError, setLocalError] = useState<string | null>(error)
+  const [loading, setLoading] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
 
-  function addDigit(digit: string) {
-    const nextPin = `${pin}${digit}`.slice(0, 4)
-    setPin(nextPin)
+  useEffect(() => {
+    inputRef.current?.focus()
+  }, [])
+
+  async function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (loading) return
+
+    if (event.key === 'Backspace') {
+      setPin((current) => current.slice(0, -1))
+      setLocalError(null)
+      return
+    }
+
+    if (!/^[0-9]$/.test(event.key)) return
+
+    const next = (pin + event.key).slice(0, 4)
+    setPin(next)
     setLocalError(null)
 
-    if (nextPin.length === 4) {
-      const validationError = onSubmit(nextPin)
+    if (next.length === 4) {
+      setLoading(true)
+      const validationError = await onSubmit(next)
+      setLoading(false)
       if (validationError) {
         setLocalError(validationError)
         setPin('')
+        inputRef.current?.focus()
       }
     }
   }
 
-  function removeDigit() {
-    setPin((currentPin) => currentPin.slice(0, -1))
-    setLocalError(null)
-  }
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
-      <section className="w-full max-w-sm rounded-2xl border border-accent/40 bg-surface p-6 text-text-primary shadow-2xl">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+      onClick={() => inputRef.current?.focus()}
+    >
+      <section className="w-full max-w-sm rounded-2xl border border-accent/40 bg-surface p-8 text-text-primary shadow-2xl">
         <h2 className="text-center text-2xl font-bold">Acceso a Caja</h2>
-        <div className="mt-6 flex justify-center gap-3">
+        <p className="mt-2 text-center text-sm text-text-secondary">Ingresá tu PIN con el teclado numérico</p>
+
+        <input
+          ref={inputRef}
+          className="sr-only"
+          onKeyDown={handleKeyDown}
+          readOnly
+          type="password"
+          value={pin}
+        />
+
+        <div className="mt-8 flex justify-center gap-4">
           {[0, 1, 2, 3].map((index) => (
             <span
-              className={`h-4 w-4 rounded-full border border-accent ${pin.length > index ? 'bg-accent' : 'bg-transparent'}`}
+              className={`h-5 w-5 rounded-full border-2 border-accent transition-all duration-150 ${
+                pin.length > index ? 'scale-110 bg-accent' : 'bg-transparent'
+              }`}
               key={index}
             />
           ))}
         </div>
-        {localError ? <p className="mt-4 text-center text-sm font-bold text-red-300">{localError}</p> : null}
-        <div className="mt-6 grid grid-cols-3 gap-3">
-          {numbers.map((number) => (
-            <button
-              className="rounded-xl bg-surface-deep py-4 text-xl font-bold transition hover:bg-accent hover:text-background"
-              key={number}
-              onClick={() => addDigit(number)}
-              type="button"
-            >
-              {number}
-            </button>
-          ))}
-          <span />
-          <button
-            className="rounded-xl bg-surface-deep py-4 text-xl font-bold transition hover:bg-accent hover:text-background"
-            onClick={() => addDigit('0')}
-            type="button"
-          >
-            0
-          </button>
-          <button
-            aria-label="Borrar último dígito"
-            className="flex items-center justify-center rounded-xl bg-surface-deep py-4 transition hover:bg-accent hover:text-background"
-            onClick={removeDigit}
-            type="button"
-          >
-            <Delete className="h-6 w-6" />
-          </button>
+
+        <div className="mt-6 h-6 text-center text-sm font-bold">
+          {loading ? (
+            <span className="text-text-secondary">Verificando...</span>
+          ) : localError ? (
+            <span className="text-red-300">{localError}</span>
+          ) : null}
         </div>
       </section>
     </div>

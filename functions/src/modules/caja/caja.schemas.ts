@@ -1,9 +1,26 @@
 import { z } from 'zod'
 
-export const movimientoCajaSchema = z.object({
-  concepto: z.string().min(1),
-  monto: z.number(),
-  tipo: z.enum(['ingreso', 'egreso']),
+export const validarPinSchema = z.object({
+  pin: z.string().min(1),
 })
+export type ValidarPinInput = z.infer<typeof validarPinSchema>
 
-export type MovimientoCajaInput = z.infer<typeof movimientoCajaSchema>
+export const cajaDiariaParamsSchema = z.object({
+  fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  sucursalId: z.string().min(1),
+})
+export type CajaDiariaParams = z.infer<typeof cajaDiariaParamsSchema>
+
+export const liquidacionParamsSchema = z.object({
+  desde: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  hasta: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  sucursalId: z.string().min(1),
+})
+export type LiquidacionParams = z.infer<typeof liquidacionParamsSchema>
+
+export const metricasParamsSchema = z.object({
+  mes: z.coerce.number().int().min(1).max(12),
+  anio: z.coerce.number().int().min(2020),
+  sucursalId: z.string().min(1),
+})
+export type MetricasParams = z.infer<typeof metricasParamsSchema>

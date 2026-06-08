@@ -1,4 +1,5 @@
 import type { Request, Response } from 'express'
+import { ConflictError } from '../../shared/errors'
 import { servicioSchema, servicioUpdateSchema } from './servicios.schemas'
 import { serviciosService } from './servicios.service'
 
@@ -56,7 +57,11 @@ export class ServiciosController {
         return
       }
       response.status(204).send()
-    } catch {
+    } catch (error) {
+      if (error instanceof ConflictError) {
+        response.status(409).json({ error: error.message })
+        return
+      }
       response.status(500).json({ error: 'Error al eliminar el servicio' })
     }
   }

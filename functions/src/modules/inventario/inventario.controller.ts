@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express'
-import { ajusteStockSchema, productoSchema, productoUpdateSchema, ventaSchema } from './inventario.schemas'
+import { ajusteStockSchema, productoSchema, productoUpdateSchema, ventaMultipleSchema, ventaSchema } from './inventario.schemas'
 import { inventarioService } from './inventario.service'
 
 function pid(request: Request): string {
@@ -79,6 +79,16 @@ export class InventarioController {
     }
   }
 
+  async listVentas(request: Request, response: Response) {
+    try {
+      const { sucursalId, fecha } = request.query as { sucursalId?: string; fecha?: string }
+      const ventas = await inventarioService.listVentas(sucursalId, fecha)
+      response.json({ ventas })
+    } catch {
+      response.status(500).json({ error: 'Error al obtener las ventas' })
+    }
+  }
+
   async registrarVenta(request: Request, response: Response) {
     try {
       const parsed = ventaSchema.safeParse(request.body)
@@ -92,6 +102,30 @@ export class InventarioController {
       if (error instanceof Error && error.message === 'Producto no encontrado') {
         response.status(404).json({ error: 'Producto no encontrado' })
         return
+      }
+      response.status(500).json({ error: 'Error al registrar la venta' })
+    }
+  }
+
+  async registrarVentaMultiple(request: Request, response: Response) {
+    try {
+      const parsed = ventaMultipleSchema.safeParse(request.body)
+      if (!parsed.success) {
+        response.status(400).json({ error: 'Datos inválidos', details: parsed.error.issues })
+        return
+      }
+      const ventas = await inventarioService.registrarVentaMultiple(parsed.data)
+      response.status(201).json({ ventas })
+    } catch (error) {
+      if (error instanceof Error) {
+        if (error.message.includes('no encontrado')) {
+          response.status(404).json({ error: error.message })
+          return
+        }
+        if (error.message.includes('Stock insuficiente') || error.message.includes('no tiene precio')) {
+          response.status(422).json({ error: error.message })
+          return
+        }
       }
       response.status(500).json({ error: 'Error al registrar la venta' })
     }

@@ -1,14 +1,15 @@
 import { z } from 'zod'
 import type { Request, Response } from 'express'
+import { ConflictError } from '../../shared/errors'
 import {
   createTurnoFijoSchema,
   createTurnoSchema,
-  pausarTurnoFijoSchema,
   realizadoSchema,
   reemplazoFijoSchema,
   turnosFijosFiltersSchema,
   turnosFiltersSchema,
   updateTurnoFijoSchema,
+  updateTurnoSchema,
 } from './agenda.schemas'
 import { agendaService } from './agenda.service'
 
@@ -20,6 +21,10 @@ function pid(request: Request): string {
 function handleError(response: Response, error: unknown) {
   if (error instanceof z.ZodError) {
     response.status(422).json({ error: 'Datos inválidos', details: error.issues })
+    return
+  }
+  if (error instanceof ConflictError) {
+    response.status(409).json({ error: error.message })
     return
   }
   if (error instanceof Error) {
@@ -63,6 +68,16 @@ export class AgendaController {
     try {
       const { metodoPago } = realizadoSchema.parse(request.body)
       const turno = await agendaService.realizarTurno(pid(request), metodoPago)
+      response.json({ turno })
+    } catch (error) {
+      handleError(response, error)
+    }
+  }
+
+  async updateTurno(request: Request, response: Response) {
+    try {
+      const input = updateTurnoSchema.parse(request.body)
+      const turno = await agendaService.updateTurno(pid(request), input)
       response.json({ turno })
     } catch (error) {
       handleError(response, error)
@@ -142,25 +157,6 @@ export class AgendaController {
     try {
       await agendaService.deleteTurnoFijo(pid(request))
       response.status(204).send()
-    } catch (error) {
-      handleError(response, error)
-    }
-  }
-
-  async pausarTurnoFijo(request: Request, response: Response) {
-    try {
-      const input = pausarTurnoFijoSchema.parse(request.body)
-      const turnoFijo = await agendaService.pausarTurnoFijo(pid(request), input)
-      response.json({ turnoFijo })
-    } catch (error) {
-      handleError(response, error)
-    }
-  }
-
-  async reanudarTurnoFijo(request: Request, response: Response) {
-    try {
-      const turnoFijo = await agendaService.reanudarTurnoFijo(pid(request))
-      response.json({ turnoFijo })
     } catch (error) {
       handleError(response, error)
     }

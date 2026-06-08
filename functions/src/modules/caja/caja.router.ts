@@ -3,5 +3,7 @@ import { cajaController } from './caja.controller'
 
 export const cajaRouter = Router()
 
-cajaRouter.get('/', (request, response) => cajaController.list(request, response))
-cajaRouter.post('/', (request, response) => cajaController.create(request, response))
+cajaRouter.post('/validar-pin', (req, res) => cajaController.validarPin(req, res))
+cajaRouter.get('/diaria', (req, res) => cajaController.cajaDiaria(req, res))
+cajaRouter.get('/liquidacion', (req, res) => cajaController.liquidacion(req, res))
+cajaRouter.get('/metricas', (req, res) => cajaController.metricas(req, res))

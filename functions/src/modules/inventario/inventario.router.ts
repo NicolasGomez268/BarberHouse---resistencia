@@ -4,6 +4,8 @@ import { inventarioController } from './inventario.controller'
 export const inventarioRouter = Router()
 
 // Rutas estáticas antes de /:id para evitar colisiones
+inventarioRouter.get('/ventas', (req, res) => inventarioController.listVentas(req, res))
+inventarioRouter.post('/ventas/multi', (req, res) => inventarioController.registrarVentaMultiple(req, res))
 inventarioRouter.post('/ventas', (req, res) => inventarioController.registrarVenta(req, res))
 inventarioRouter.patch('/:id/stock', (req, res) => inventarioController.ajustarStock(req, res))
 inventarioRouter.get('/', (req, res) => inventarioController.list(req, res))

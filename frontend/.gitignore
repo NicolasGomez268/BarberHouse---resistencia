@@ -1,3 +1,8 @@
+# Environment variables (keep .env.example tracked as template)
+.env
+.env.*
+!.env.example
+
 # Logs
 logs
 *.log
