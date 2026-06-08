@@ -21,7 +21,55 @@ export function LiquidacionSemanal({ desde, hasta, sucursalId }: LiquidacionSema
 
   return (
     <section className="min-w-0 rounded-lg bg-surface">
-      <table className="w-full table-fixed text-left text-sm">
+
+      {/* Mobile: tarjetas */}
+      <div className="space-y-2 p-3 md:hidden">
+        {data.filas.map((row) => (
+          <div className="rounded-lg border border-white/10 p-3" key={row.barberoId}>
+            <div className="flex items-center justify-between">
+              <span className="font-bold">{row.barberoNombre}</span>
+              <span className="text-xs text-text-secondary">{row.turnosRealizados} turnos</span>
+            </div>
+            <div className="mt-2 grid grid-cols-3 gap-1 text-xs">
+              <div>
+                <p className="text-text-secondary">Bruto</p>
+                <p className="font-bold">{money(row.montoBruto)}</p>
+              </div>
+              <div>
+                <p className="text-text-secondary">Comisión</p>
+                <p className="font-bold text-green-300">{money(row.comisionBarbero)}</p>
+              </div>
+              <div>
+                <p className="text-text-secondary">Casa</p>
+                <p className="font-bold text-accent">{money(row.parteCasa)}</p>
+              </div>
+            </div>
+          </div>
+        ))}
+        <div className="rounded-lg border border-white/20 bg-white/5 p-3">
+          <div className="flex items-center justify-between">
+            <span className="font-bold">Totales</span>
+            <span className="text-xs text-text-secondary">{data.filas.reduce((t, r) => t + r.turnosRealizados, 0)} turnos</span>
+          </div>
+          <div className="mt-2 grid grid-cols-3 gap-1 text-xs">
+            <div>
+              <p className="text-text-secondary">Bruto</p>
+              <p className="font-bold">{money(data.totalBruto)}</p>
+            </div>
+            <div>
+              <p className="text-text-secondary">Comisión</p>
+              <p className="font-bold text-green-300">{money(data.totalComisiones)}</p>
+            </div>
+            <div>
+              <p className="text-text-secondary">Casa</p>
+              <p className="font-bold text-accent">{money(data.totalCasa)}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Desktop: tabla */}
+      <table className="hidden w-full table-fixed text-left text-sm md:table">
         <colgroup>
           <col />
           <col style={{ width: '70px' }} />
@@ -71,6 +119,7 @@ export function LiquidacionSemanal({ desde, hasta, sucursalId }: LiquidacionSema
           </tr>
         </tbody>
       </table>
+
     </section>
   )
 }

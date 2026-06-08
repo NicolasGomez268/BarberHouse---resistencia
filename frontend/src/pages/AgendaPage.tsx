@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
+import { LogOut } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { ModalConfirmarEliminar } from '../features/agenda/components/ModalConfirmarEliminar'
 import { ModalEditarTurnoFijo } from '../features/agenda/components/ModalEditarTurnoFijo'
 import { ModalNuevoTurnoFijo } from '../features/agenda/components/ModalNuevoTurnoFijo'
@@ -7,6 +9,7 @@ import { useTurnos } from '../features/agenda/hooks/useTurnos'
 import { getAvailableSlots } from '../features/agenda/lib/appointments'
 import { useEquipo } from '../features/equipo/hooks/useEquipo'
 import { useServicios } from '../features/servicios/hooks/useServicios'
+import { useAuth } from '../shared/hooks/useAuth'
 import type { MetodoPagoMock, Turno, TurnoFijo } from '../types'
 
 type CalendarDay = {
@@ -86,6 +89,14 @@ function isHistoricalTurno(turno: Turno, now: Date) {
 }
 
 export function AgendaPage() {
+  const { logout } = useAuth()
+  const navigate = useNavigate()
+
+  function handleLogout() {
+    logout()
+    navigate('/login')
+  }
+
   const { servicios } = useServicios()
   const serviciosActivos = servicios.filter((s) => s.isActive ?? true)
   const { barberos, horarios } = useEquipo()
@@ -444,11 +455,19 @@ export function AgendaPage() {
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white">
-      <header>
+      <header className="flex items-center justify-between">
         <div>
           <p className="hidden text-[11px] uppercase tracking-widest text-[#a0a0a0] md:block">SECCIÓN PRINCIPAL</p>
           <h1 className="text-[42px] font-black leading-none text-white md:mt-2 md:text-[32px] md:font-bold">Agenda</h1>
         </div>
+        <button
+          className="flex items-center gap-1.5 rounded-lg border border-[#2a2a2a] bg-[#0f0f0f] px-3 py-2 text-xs font-semibold text-red-300 transition hover:border-red-400 hover:text-red-200 md:hidden"
+          onClick={handleLogout}
+          type="button"
+        >
+          <LogOut className="h-4 w-4" />
+          Salir
+        </button>
       </header>
 
       <section
@@ -893,18 +912,18 @@ export function AgendaPage() {
         </section>
 
       {selectedTurno ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-3">
           <section className="w-full max-w-lg rounded-xl border border-[#2f2f2f] bg-[#050505] text-white shadow-2xl">
-            <div className="flex items-start justify-between border-b border-[#242424] px-6 py-5">
+            <div className="flex items-start justify-between border-b border-[#242424] px-4 py-3">
               <div>
                 <p className="text-sm font-bold text-[#f5c518]">
                   {selectedTurno.hora}{selectedTurno.horaFin ? ` - ${selectedTurno.horaFin}` : ''}
                 </p>
-                <h2 className="mt-1 text-2xl font-bold">{selectedTurno.clienteNombre}</h2>
+                <h2 className="mt-0.5 text-xl font-bold">{selectedTurno.clienteNombre}</h2>
               </div>
               <button
                 aria-label="Cerrar detalle del turno"
-                className="text-3xl leading-none text-[#a0a0a0] hover:text-white"
+                className="text-2xl leading-none text-[#a0a0a0] hover:text-white"
                 onClick={() => setSelectedTurno(null)}
                 type="button"
               >
@@ -912,42 +931,48 @@ export function AgendaPage() {
               </button>
             </div>
 
-            <div className="space-y-3 px-6 py-5 text-sm">
-              <div className="rounded-lg bg-[#111111] px-4 py-3">
-                <span className="block text-[#a0a0a0]">Servicio</span>
-                <strong className="mt-1 block text-white">{getServiceName(selectedTurno)}</strong>
-              </div>
-              <div className="rounded-lg bg-[#111111] px-4 py-3">
-                <span className="block text-[#a0a0a0]">Barbero</span>
-                <strong className="mt-1 block text-white">{getBarberName(selectedTurno)}</strong>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded-lg bg-[#111111] px-4 py-3">
-                  <span className="block text-[#a0a0a0]">Fecha</span>
-                  <strong className="mt-1 block text-white">{selectedTurno.fecha ?? selectedDate}</strong>
+            <div className="space-y-2 px-4 py-3 text-sm">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="rounded-lg bg-[#111111] px-3 py-2">
+                  <span className="block text-xs text-[#a0a0a0]">Servicio</span>
+                  <strong className="mt-0.5 block text-white">{getServiceName(selectedTurno)}</strong>
                 </div>
-                <div className="rounded-lg bg-[#111111] px-4 py-3">
-                  <span className="block text-[#a0a0a0]">Estado</span>
-                  <span className={`mt-2 inline-flex rounded-full px-3 py-1 text-xs font-bold ${getStatusBadge(selectedTurno).className}`}>
+                <div className="rounded-lg bg-[#111111] px-3 py-2">
+                  <span className="block text-xs text-[#a0a0a0]">Barbero</span>
+                  <strong className="mt-0.5 block text-white">{getBarberName(selectedTurno)}</strong>
+                </div>
+                <div className="rounded-lg bg-[#111111] px-3 py-2">
+                  <span className="block text-xs text-[#a0a0a0]">Sucursal</span>
+                  <strong className="mt-0.5 block text-white">
+                    {selectedTurno.sucursalId === 's1' ? 'Sucursal 1' : selectedTurno.sucursalId === 's2' ? 'Sucursal 2' : selectedTurno.sucursalId ?? '—'}
+                  </strong>
+                </div>
+                <div className="rounded-lg bg-[#111111] px-3 py-2">
+                  <span className="block text-xs text-[#a0a0a0]">Fecha</span>
+                  <strong className="mt-0.5 block text-white">{selectedTurno.fecha ?? selectedDate}</strong>
+                </div>
+                <div className="rounded-lg bg-[#111111] px-3 py-2">
+                  <span className="block text-xs text-[#a0a0a0]">Estado</span>
+                  <span className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-xs font-bold ${getStatusBadge(selectedTurno).className}`}>
                     {getStatusBadge(selectedTurno).label}
                   </span>
                   {selectedTurno.estado === 'AUSENTE_FIJO' ? (
-                    <p className="mt-2 text-xs text-[#a0a0a0]">
+                    <p className="mt-1 text-xs text-[#a0a0a0]">
                       El cliente fijo no asistió — este horario está disponible
                     </p>
                   ) : null}
                 </div>
-              </div>
-              <div className="rounded-lg bg-[#111111] px-4 py-3">
-                <span className="block text-[#a0a0a0]">Teléfono</span>
-                <strong className="mt-1 block text-white">{selectedTurno.clienteTelefono ?? 'Sin teléfono cargado'}</strong>
+                <div className="rounded-lg bg-[#111111] px-3 py-2">
+                  <span className="block text-xs text-[#a0a0a0]">Teléfono</span>
+                  <strong className="mt-0.5 block text-white">{selectedTurno.clienteTelefono ?? 'Sin teléfono cargado'}</strong>
+                </div>
               </div>
             </div>
 
             {selectedTurno.estado === 'AUSENTE_FIJO' ? (
-              <div className="border-t border-[#242424] px-6 py-5">
+              <div className="border-t border-[#242424] px-4 py-3">
                 <button
-                  className="w-full rounded-lg border border-purple-500/30 bg-purple-500/20 px-4 py-3 text-sm font-bold text-purple-400 transition hover:border-purple-400"
+                  className="w-full rounded-lg border border-purple-500/30 bg-purple-500/20 px-4 py-2.5 text-sm font-bold text-purple-400 transition hover:border-purple-400"
                   onClick={() => openAssignReplacement(selectedTurno)}
                   type="button"
                 >
@@ -955,10 +980,10 @@ export function AgendaPage() {
                 </button>
               </div>
             ) : (
-            <div className="grid gap-3 border-t border-[#242424] px-6 py-5 sm:grid-cols-3">
+            <div className="grid gap-2 border-t border-[#242424] px-4 py-3 sm:grid-cols-3">
               {selectedTurno.esFijo && selectedTurno.turnoFijoId && (selectedTurno.estado === 'PENDIENTE' || selectedTurno.estado === 'CONFIRMADO') ? (
                 <button
-                  className="col-span-full rounded-lg border border-purple-500/30 bg-purple-500/10 px-4 py-3 text-sm font-bold text-purple-400 transition hover:border-purple-400 hover:bg-purple-500/20"
+                  className="col-span-full rounded-lg border border-purple-500/30 bg-purple-500/10 px-4 py-2.5 text-sm font-bold text-purple-400 transition hover:border-purple-400 hover:bg-purple-500/20"
                   onClick={() => {
                     marcarAusenteFijo(selectedTurno.id)
                     setSelectedTurno(null)
@@ -969,7 +994,7 @@ export function AgendaPage() {
                 </button>
               ) : null}
               <a
-                className="rounded-lg border border-[#3f4c2a] bg-[#202713] px-4 py-3 text-center text-sm font-bold text-[#f5c518] transition hover:border-[#f5c518]"
+                className="rounded-lg border border-[#3f4c2a] bg-[#202713] px-4 py-2.5 text-center text-sm font-bold text-[#f5c518] transition hover:border-[#f5c518]"
                 href={getWhatsAppUrl(selectedTurno, getReminderMessage(selectedTurno))}
                 rel="noreferrer"
                 target="_blank"
@@ -977,14 +1002,14 @@ export function AgendaPage() {
                 Recordar
               </a>
               <button
-                className="rounded-lg border border-[#22543d] bg-[#123524] px-4 py-3 text-sm font-bold text-[#86efac] transition hover:border-[#22c55e]"
+                className="rounded-lg border border-[#22543d] bg-[#123524] px-4 py-2.5 text-sm font-bold text-[#86efac] transition hover:border-[#22c55e]"
                 onClick={() => setPaymentTurno(selectedTurno)}
                 type="button"
               >
                 Asistió
               </button>
               <button
-                className="rounded-lg border border-[#5f2d2d] bg-[#2a1618] px-4 py-3 text-sm font-bold text-[#fca5a5] transition hover:border-[#ef4444]"
+                className="rounded-lg border border-[#5f2d2d] bg-[#2a1618] px-4 py-2.5 text-sm font-bold text-[#fca5a5] transition hover:border-[#ef4444]"
                 onClick={() => setCancelingTurno(selectedTurno)}
                 type="button"
               >
