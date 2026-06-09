@@ -2,7 +2,10 @@ import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebas
 import { createContext, useEffect, useState, type ReactNode } from 'react'
 import { auth } from '../lib/firebase'
 import { apiClient } from '../shared/api/client'
+import { authMock } from '../mocks/auth.mock'
 import type { Usuario } from '../types'
+
+const USE_MOCKS = import.meta.env.VITE_USE_MOCKS !== 'false'
 
 type AuthContextValue = {
   user: Usuario | null
@@ -25,11 +28,13 @@ type AuthProviderProps = {
 }
 
 export function AuthProvider({ children }: AuthProviderProps) {
-  const [user, setUser] = useState<Usuario | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [user, setUser] = useState<Usuario | null>(USE_MOCKS ? authMock.user : null)
+  const [loading, setLoading] = useState(!USE_MOCKS)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    if (USE_MOCKS) return
+
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         try {
@@ -50,6 +55,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, [])
 
   async function login(email: string, password: string) {
+    if (USE_MOCKS) {
+      setUser(authMock.user)
+      return
+    }
     setLoading(true)
     setError(null)
     try {
@@ -67,6 +76,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }
 
   async function logout() {
+    if (USE_MOCKS) {
+      setUser(null)
+      return
+    }
     await signOut(auth)
     setUser(null)
   }
