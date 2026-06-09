@@ -108,7 +108,7 @@ export function ServiciosPage() {
         </div>
 
         <button
-          className="inline-flex w-full items-center justify-center gap-3 rounded-lg bg-[#e5c04f] px-7 py-4 font-bold text-[#050505] transition hover:bg-[#f5c518] sm:w-auto"
+          className="inline-flex w-full items-center justify-center gap-3 rounded-lg bg-[#f5c518] px-7 py-4 font-bold text-[#050505] transition hover:brightness-110 sm:w-auto"
           onClick={openCreateModal}
           type="button"
         >
@@ -270,7 +270,7 @@ export function ServiciosPage() {
                 Cancelar
               </button>
               <button
-                className="rounded-lg bg-[#e5c04f] px-4 py-3 font-bold text-[#050505] transition hover:bg-[#f5c518]"
+                className="rounded-lg bg-[#f5c518] px-4 py-3 font-bold text-[#050505] transition hover:brightness-110"
                 type="submit"
               >
                 {isEditing ? 'Guardar Cambios' : 'Crear Servicio'}
@@ -283,7 +283,7 @@ export function ServiciosPage() {
       {deletingServicio ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
           <section className="w-full max-w-[448px] rounded-lg border border-[#3f3f3f] bg-[#050505] p-6 text-center text-white shadow-2xl">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border-2 border-[#e5c04f] bg-[#e5c04f]/20 text-[#e5c04f]">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border-2 border-[#e5c04f] bg-[#f5c518]/20 text-[#e5c04f]">
               <AlertTriangle className="h-9 w-9" />
             </div>
             <h2 className="mt-5 text-xl font-bold">Eliminar servicio</h2>

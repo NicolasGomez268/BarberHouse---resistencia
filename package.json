@@ -9,7 +9,8 @@
     "emulators:export": "firebase emulators:export .emulator-data --only auth,firestore --force",
     "dev:frontend": "cd frontend && npm run dev",
     "build:functions": "npm run build --prefix functions",
-    "build:frontend": "npm run build --prefix frontend"
+    "build:frontend": "npm run build --prefix frontend",
+    "deploy:hosting": "npm run build:frontend && firebase deploy --only hosting --project production"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

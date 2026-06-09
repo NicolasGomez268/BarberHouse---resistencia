@@ -263,7 +263,7 @@ export function InventarioPage() {
               <option>Activos</option>
               <option>Inactivos</option>
             </select>
-            <button className="inline-flex items-center justify-center gap-3 rounded-lg bg-[#e5c04f] px-6 py-3 font-bold text-[#050505] transition hover:bg-[#f5c518]" onClick={openCreateModal} type="button">
+            <button className="inline-flex items-center justify-center gap-3 rounded-lg bg-[#f5c518] px-6 py-3 font-bold text-[#050505] transition hover:brightness-110" onClick={openCreateModal} type="button">
               <Plus className="h-6 w-6 text-[#7c3aed]" />
               Nuevo Producto
             </button>
@@ -373,7 +373,7 @@ export function InventarioPage() {
             </div>
             <div className="flex flex-col gap-3 border-t border-[#333333] px-6 py-5 sm:flex-row sm:justify-end">
               <button className="rounded-lg bg-[#3f3f3f] px-6 py-3 text-white hover:bg-[#6b6b6b]" onClick={closeProductModal} type="button">Cancelar</button>
-              <button className="rounded-lg bg-[#e5c04f] px-6 py-3 font-bold text-[#050505] hover:bg-[#f5c518]" type="submit">{isEditing ? 'Guardar cambios' : 'Crear producto'}</button>
+              <button className="rounded-lg bg-[#f5c518] px-6 py-3 font-bold text-[#050505] hover:brightness-110" type="submit">{isEditing ? 'Guardar cambios' : 'Crear producto'}</button>
             </div>
           </form>
         </div>
@@ -412,7 +412,7 @@ export function InventarioPage() {
             </label>
             <div className="mt-5 flex gap-3">
               <button className="flex-1 rounded-lg bg-[#3f3f3f] py-3 text-white hover:bg-[#6b6b6b]" onClick={() => setStockModal(null)} type="button">Cancelar</button>
-              <button className="flex-1 rounded-lg bg-[#e5c04f] py-3 font-bold text-[#050505] hover:bg-[#f5c518]" onClick={confirmStockAdjust} type="button">Confirmar</button>
+              <button className="flex-1 rounded-lg bg-[#f5c518] py-3 font-bold text-[#050505] hover:brightness-110" onClick={confirmStockAdjust} type="button">Confirmar</button>
             </div>
           </div>
         </div>
@@ -643,7 +643,7 @@ function SaleForm({ isLoading, onSubmit, products, sale, saleError, saleSuccess,
       </div>
       {saleError ? <p className="mt-4 text-sm font-bold text-red-300">{saleError}</p> : null}
       {saleSuccess ? <p className="mt-4 text-sm font-bold text-[#4ade80]">Venta registrada con éxito.</p> : null}
-      <button className="mt-5 w-full rounded-lg bg-[#e5c04f] px-4 py-4 font-bold text-[#050505] hover:bg-[#f5c518] disabled:opacity-50 disabled:cursor-not-allowed" disabled={isLoading || sale.items.length === 0} type="submit">
+      <button className="mt-5 w-full rounded-lg bg-[#f5c518] px-4 py-4 font-bold text-[#050505] hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed" disabled={isLoading || sale.items.length === 0} type="submit">
         {isLoading ? 'Registrando...' : `Confirmar Venta${sale.items.length > 0 ? ` (${sale.items.length} producto${sale.items.length > 1 ? 's' : ''})` : ''}`}
       </button>
     </form>
@@ -654,8 +654,8 @@ function SalesHistory({ historyDate, historyPayment, onRefresh, products, sales,
   const total = sales.reduce((sum, sale) => sum + sale.total, 0)
   return (
     <>
-      <section className="mt-6 flex flex-col gap-4 rounded-lg bg-[#111111] p-4 sm:flex-row sm:items-center"><label className="font-bold">Fecha:</label><input className="rounded-lg border border-[#6b5600] bg-[#0a0a0a] px-4 py-3 text-white" onChange={(event) => setHistoryDate(event.target.value)} type="date" value={historyDate} /><select className="rounded-lg border border-[#6b5600] bg-[#0a0a0a] px-4 py-3 text-white" onChange={(event) => setHistoryPayment(event.target.value as MetodoPago | 'TODOS')} value={historyPayment}><option value="TODOS">Todos</option><option value="EFECTIVO">Efectivo</option><option value="TRANSFERENCIA">Transferencia</option><option value="TARJETA">Tarjeta</option></select><button className="rounded-lg bg-[#e5c04f] px-6 py-3 font-bold text-[#050505] hover:bg-[#f5c518]" onClick={onRefresh} type="button">Actualizar</button></section>
-      <section className="mt-5 grid gap-4 md:grid-cols-4"><SummaryCard accent="border-l-[#f5c518]" label="Ventas del día" value={sales.length} /><article className="rounded-lg bg-[#e5c04f] p-6 text-[#050505] shadow-lg shadow-[#e5c04f]/20"><p className="font-bold">Total vendido</p><p className="mt-3 text-3xl font-bold">{formatCurrency(total)}</p></article><article className="rounded-lg border-l-4 border-l-[#6b6b6b] bg-[#111111] p-6"><p className="font-bold text-[#bdbdbd]">Efectivo</p><p className="mt-3 text-2xl font-bold text-white">{formatCurrency(sales.filter((sale) => sale.metodoPago === 'EFECTIVO').reduce((sum, sale) => sum + sale.total, 0))}</p></article><article className="rounded-lg border-l-4 border-l-[#6b6b6b] bg-[#111111] p-6"><p className="font-bold text-[#bdbdbd]">Transf. + Tarjeta</p><p className="mt-3 text-2xl font-bold text-white">{formatCurrency(sales.filter((sale) => sale.metodoPago !== 'EFECTIVO').reduce((sum, sale) => sum + sale.total, 0))}</p></article></section>
+      <section className="mt-6 flex flex-col gap-4 rounded-lg bg-[#111111] p-4 sm:flex-row sm:items-center"><label className="font-bold">Fecha:</label><input className="rounded-lg border border-[#6b5600] bg-[#0a0a0a] px-4 py-3 text-white" onChange={(event) => setHistoryDate(event.target.value)} type="date" value={historyDate} /><select className="rounded-lg border border-[#6b5600] bg-[#0a0a0a] px-4 py-3 text-white" onChange={(event) => setHistoryPayment(event.target.value as MetodoPago | 'TODOS')} value={historyPayment}><option value="TODOS">Todos</option><option value="EFECTIVO">Efectivo</option><option value="TRANSFERENCIA">Transferencia</option><option value="TARJETA">Tarjeta</option></select><button className="rounded-lg bg-[#f5c518] px-6 py-3 font-bold text-[#050505] hover:brightness-110" onClick={onRefresh} type="button">Actualizar</button></section>
+      <section className="mt-5 grid gap-4 md:grid-cols-4"><SummaryCard accent="border-l-[#f5c518]" label="Ventas del día" value={sales.length} /><article className="rounded-lg bg-[#f5c518] p-6 text-[#050505] shadow-lg shadow-[#f5c518]/20"><p className="font-bold">Total vendido</p><p className="mt-3 text-3xl font-bold">{formatCurrency(total)}</p></article><article className="rounded-lg border-l-4 border-l-[#6b6b6b] bg-[#111111] p-6"><p className="font-bold text-[#bdbdbd]">Efectivo</p><p className="mt-3 text-2xl font-bold text-white">{formatCurrency(sales.filter((sale) => sale.metodoPago === 'EFECTIVO').reduce((sum, sale) => sum + sale.total, 0))}</p></article><article className="rounded-lg border-l-4 border-l-[#6b6b6b] bg-[#111111] p-6"><p className="font-bold text-[#bdbdbd]">Transf. + Tarjeta</p><p className="mt-3 text-2xl font-bold text-white">{formatCurrency(sales.filter((sale) => sale.metodoPago !== 'EFECTIVO').reduce((sum, sale) => sum + sale.total, 0))}</p></article></section>
       <section className="mt-5 rounded-lg border border-[#111111] bg-[#050505] p-6 text-[#d1d5db]">{sales.length === 0 ? <p className="p-8 text-center text-[#6b7280]">No hay ventas registradas para esta fecha.</p> : <div className="space-y-3">{sales.map((sale) => <div className="grid gap-2 rounded-lg bg-[#111111] p-4 md:grid-cols-[1fr_auto_auto]" key={sale.id}><span>{sale.productoNombre ?? products.find((product) => product.id === sale.productoId)?.nombre ?? sale.productoId} · {sale.cantidad} u.</span><span>{sale.metodoPago}</span><strong>{formatCurrency(sale.total)}</strong></div>)}</div>}</section>
     </>
   )

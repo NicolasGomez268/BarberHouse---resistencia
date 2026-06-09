@@ -183,28 +183,28 @@ export function EquipoPage() {
         </div>
 
         <button
-          className="inline-flex w-full items-center justify-center gap-3 rounded-lg bg-[#e5c04f] px-7 py-4 font-bold text-[#050505] transition hover:bg-[#f5c518] sm:w-auto"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#f5c518] px-5 py-3 font-bold text-[#050505] transition hover:brightness-110 sm:w-auto"
           onClick={openCreateModal}
           type="button"
         >
-          <span className="text-2xl leading-none text-[#7c3aed]">+</span>
+          <span className="text-xl leading-none">+</span>
           Nuevo Barbero
         </button>
       </header>
 
-      <section className="mt-7 grid gap-6 xl:grid-cols-3 lg:grid-cols-2">
+      <section className="mt-5 grid gap-3 xl:grid-cols-3 lg:grid-cols-2">
         {barberos.map((barbero) => (
           <article
-            className={`overflow-hidden rounded-xl border border-[#4f3f00] bg-[#050505] shadow-[0_18px_50px_rgba(0,0,0,0.28)] ${
+            className={`overflow-hidden rounded-xl border border-[#4f3f00] bg-[#050505] shadow-[0_8px_24px_rgba(0,0,0,0.28)] ${
               isBarberActive(barbero) ? '' : 'opacity-55'
             }`}
             key={barbero.id}
           >
-            <div className="border-b border-[#242424] bg-[#171404] px-6 py-5">
-              <div className="flex items-start justify-between gap-4">
+            <div className="border-b border-[#242424] bg-[#171404] px-4 py-3">
+              <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <h2 className="truncate text-xl font-bold text-white">{barbero.nombre}</h2>
-                  <p className="mt-1 text-sm text-[#a0a0a0]">
+                  <h2 className="truncate text-base font-bold text-white">{barbero.nombre}</h2>
+                  <p className="text-xs text-[#a0a0a0]">
                     {barbero.telefono ? barbero.telefono : 'Sin telefono cargado'}
                   </p>
                 </div>
@@ -212,7 +212,7 @@ export function EquipoPage() {
                 <div className="flex shrink-0 items-center gap-2">
                   <button
                     aria-label={`${isBarberActive(barbero) ? 'Desactivar' : 'Activar'} ${barbero.nombre}`}
-                    className={`flex h-6 w-11 items-center rounded-full px-1 transition ${
+                    className={`flex h-5 w-9 items-center rounded-full px-0.5 transition ${
                       isBarberActive(barbero) ? 'justify-end bg-[#22c55e]' : 'justify-start bg-[#4b5563]'
                     }`}
                     onClick={() => toggleActivo(barbero.id)}
@@ -221,7 +221,7 @@ export function EquipoPage() {
                     <span className="h-4 w-4 rounded-full bg-white" />
                   </button>
                   <button
-                    className="rounded-lg border border-[#2f2f2f] bg-[#0a0a0a] px-3 py-2 text-sm font-bold text-[#f5c518] transition hover:border-[#f5c518]"
+                    className="rounded-md border border-[#2f2f2f] bg-[#0a0a0a] px-2 py-1 text-xs font-bold text-[#f5c518] transition hover:border-[#f5c518]"
                     onClick={() => openEditModal(barbero)}
                     type="button"
                   >
@@ -230,28 +230,28 @@ export function EquipoPage() {
                 </div>
               </div>
 
-              <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
-                <div className="rounded-lg bg-[#0a0a0a] px-4 py-3">
+              <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div className="rounded-md bg-[#0a0a0a] px-3 py-2">
                   <span className="block text-[#a0a0a0]">Comision casa</span>
-                  <strong className="mt-1 block text-white">{barbero.porcentajeCasa}%</strong>
+                  <strong className="block text-white">{barbero.porcentajeCasa}%</strong>
                 </div>
-                <div className="rounded-lg bg-[#0a0a0a] px-4 py-3">
+                <div className="rounded-md bg-[#0a0a0a] px-3 py-2">
                   <span className="block text-[#a0a0a0]">Rol</span>
-                  <strong className="mt-1 block text-white">{isBarberOwner(barbero) ? 'Dueño' : 'Barbero'}</strong>
+                  <strong className="block text-white">{isBarberOwner(barbero) ? 'Dueño' : 'Barbero'}</strong>
                 </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 px-6 py-5">
+            <div className="grid grid-cols-2 gap-2 px-4 py-3">
               <button
-                className="w-full rounded-md border border-[#2f2f2f] bg-[#111111] px-3 py-2 text-xs font-bold text-[#d1d5db] transition hover:border-[#3f3f3f] hover:bg-[#242424]"
+                className="w-full rounded-md border border-[#2f2f2f] bg-[#111111] px-3 py-1.5 text-xs font-bold text-[#d1d5db] transition hover:border-[#3f3f3f] hover:bg-[#242424]"
                 onClick={() => openScheduleModal(barbero)}
                 type="button"
               >
                 Horarios
               </button>
               <button
-                className="w-full rounded-md border border-[#5f2d2d] bg-[#2a1618] px-3 py-2 text-xs font-bold text-[#fca5a5] transition hover:border-[#7f3b3b] hover:bg-[#351c1f]"
+                className="w-full rounded-md border border-[#5f2d2d] bg-[#2a1618] px-3 py-1.5 text-xs font-bold text-[#fca5a5] transition hover:border-[#7f3b3b] hover:bg-[#351c1f]"
                 onClick={() => setDeletingBarber(barbero)}
                 type="button"
               >
