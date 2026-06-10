@@ -139,10 +139,11 @@ export function AgendaPage() {
   const [cancelingTurno, setCancelingTurno] = useState<Turno | null>(null)
   const [assigningTurno, setAssigningTurno] = useState<Turno | null>(null)
   const [editingTurno, setEditingTurno] = useState<Turno | null>(null)
-  const [editTurnoForm, setEditTurnoForm] = useState<{ barberoId: string; sucursalId: string; hora: string }>({
+  const [editTurnoForm, setEditTurnoForm] = useState<{ barberoId: string; sucursalId: string; hora: string; servicioId: string }>({
     barberoId: '',
     sucursalId: 's1',
     hora: '',
+    servicioId: '',
   })
   const [editTurnoError, setEditTurnoError] = useState<string | null>(null)
   const [turnoFormError, setTurnoFormError] = useState<string | null>(null)
@@ -218,10 +219,24 @@ export function AgendaPage() {
   })
   const displayedTurnos = filteredTurnos
     .filter((turno) => {
-      if (turnosListMode === 'selected-day') return selectedDate ? turno.fecha === selectedDate : turno.fecha === todayKey
-      if (turnosListMode === 'upcoming') return !isCancelledTurno(turno) && !isNoShowTurno(turno) && !isHistoricalTurno(turno, today)
-      if (turnosListMode === 'today') return turno.fecha === todayKey
-      if (turnosListMode === 'past') return !isCancelledTurno(turno) && !isNoShowTurno(turno) && !isAusenteFijoTurno(turno) && isHistoricalTurno(turno, today)
+      const isActive =
+        !isCancelledTurno(turno) &&
+        turno.estado !== 'REALIZADO' &&
+        !isNoShowTurno(turno)
+      if (turnosListMode === 'selected-day') {
+        const dateToShow = selectedDate ?? todayKey
+        return turno.fecha === dateToShow && isActive && !isHistoricalTurno(turno, today)
+      }
+      if (turnosListMode === 'upcoming') return isActive && !isHistoricalTurno(turno, today)
+      if (turnosListMode === 'today') return turno.fecha === todayKey && isActive && !isHistoricalTurno(turno, today)
+      if (turnosListMode === 'past') {
+        return (
+          !isCancelledTurno(turno) &&
+          !isNoShowTurno(turno) &&
+          !isAusenteFijoTurno(turno) &&
+          (isHistoricalTurno(turno, today) || turno.estado === 'REALIZADO')
+        )
+      }
       if (turnosListMode === 'cancelled') return isCancelledTurno(turno)
       return isNoShowTurno(turno)
     })
@@ -252,14 +267,7 @@ export function AgendaPage() {
       horarios,
     })
 
-    if (turnoForm.fecha !== todayKey) return slots
-
-    const now = new Date()
-    const currentMinutes = now.getHours() * 60 + now.getMinutes()
-    return slots.filter((slot) => {
-      const [h, m] = slot.start.split(':').map(Number)
-      return h * 60 + m > currentMinutes
-    })
+    return slots
   }, [selectedService, turnoForm.barberoId, turnoForm.fecha, turnos, turnosFijos, barberos, servicios, horarios])
 
   useEffect(() => {
@@ -274,7 +282,7 @@ export function AgendaPage() {
     }))
   }, [availableSlots, isTurnoModalOpen, turnoForm.hora])
 
-  const editSelectedService = editingTurno ? servicios.find((s) => s.id === editingTurno.servicioId) : undefined
+  const editSelectedService = editingTurno ? servicios.find((s) => s.id === editTurnoForm.servicioId) : undefined
   const editAvailableSlots = useMemo(() => {
     if (!editingTurno || !editSelectedService || !editTurnoForm.barberoId) return []
     return getAvailableSlots({
@@ -287,7 +295,7 @@ export function AgendaPage() {
       servicios,
       horarios,
     })
-  }, [editingTurno, editTurnoForm.barberoId, editSelectedService, turnos, turnosFijos, barberos, servicios, horarios])
+  }, [editingTurno, editTurnoForm.barberoId, editTurnoForm.servicioId, editSelectedService, turnos, turnosFijos, barberos, servicios, horarios])
 
   useEffect(() => {
     if (!editingTurno) return
@@ -496,6 +504,7 @@ export function AgendaPage() {
       barberoId: turno.barberoId ?? '',
       sucursalId: turno.sucursalId ?? 's1',
       hora: turno.hora ?? '',
+      servicioId: turno.servicioId ?? '',
     })
     setEditTurnoError(null)
   }
@@ -503,8 +512,8 @@ export function AgendaPage() {
   async function handleGuardarEditarTurno() {
     if (!editingTurno) return
     setEditTurnoError(null)
-    const servicio = servicios.find((s) => s.id === editingTurno.servicioId)
-    const horaFin = servicio
+    const servicio = servicios.find((s) => s.id === editTurnoForm.servicioId)
+    const horaFin = servicio && editTurnoForm.hora
       ? (() => {
           const [h, m] = editTurnoForm.hora.split(':').map(Number)
           const total = (h ?? 0) * 60 + (m ?? 0) + servicio.duracionMinutos
@@ -513,10 +522,11 @@ export function AgendaPage() {
       : undefined
     try {
       await editarTurno(editingTurno.id, {
-        hora: editTurnoForm.hora,
-        barberoId: editTurnoForm.barberoId,
+        hora: editTurnoForm.hora || undefined,
+        barberoId: editTurnoForm.barberoId || undefined,
         sucursalId: editTurnoForm.sucursalId as import('../types').SucursalId,
         horaFin,
+        servicioId: editTurnoForm.servicioId || undefined,
       })
       setEditingTurno(null)
       setSelectedTurno(null)
@@ -1140,6 +1150,16 @@ export function AgendaPage() {
               >
                 <option value="s1">Sucursal 1</option>
                 <option value="s2">Sucursal 2</option>
+              </select>
+              <select
+                className="w-full rounded-lg border border-[#3f3f3f] bg-[#111111] px-4 py-3 text-white"
+                onChange={(e) => setEditTurnoForm((prev) => ({ ...prev, servicioId: e.target.value, hora: '' }))}
+                value={editTurnoForm.servicioId}
+              >
+                <option value="" disabled>Seleccionar servicio</option>
+                {serviciosActivos.map((s) => (
+                  <option key={s.id} value={s.id}>{s.nombre}</option>
+                ))}
               </select>
               <div>
                 <label className="mb-2 block text-xs font-bold uppercase tracking-widest text-[#a0a0a0]">

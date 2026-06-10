@@ -100,6 +100,7 @@ export const updateTurnoSchema = z.object({
   horaFin: z.string().regex(/^\d{2}:\d{2}$/).optional(),
   barberoId: z.string().min(1).optional(),
   sucursalId: sucursalIdSchema.optional(),
+  servicioId: z.string().min(1).optional(),
 })
 export type UpdateTurnoInput = z.infer<typeof updateTurnoSchema>
 

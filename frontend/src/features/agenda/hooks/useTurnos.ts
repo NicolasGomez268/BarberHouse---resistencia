@@ -171,7 +171,7 @@ export function useTurnos(servicios: Servicio[] = [], sucursalId?: SucursalId) {
 
   async function editarTurno(
     id: string,
-    datos: { hora?: string; horaFin?: string; barberoId?: string; sucursalId?: SucursalId },
+    datos: { hora?: string; horaFin?: string; barberoId?: string; sucursalId?: SucursalId; servicioId?: string },
   ) {
     const { data } = await apiClient.patch<{ turno: Turno }>(`/agenda/${id}`, datos)
     setTurnos((prev) => prev.map((t) => (t.id === id ? data.turno : t)))
