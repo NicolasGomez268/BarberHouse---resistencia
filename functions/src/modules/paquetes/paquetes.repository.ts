@@ -39,11 +39,10 @@ export class PaquetesRepository {
   async findByFecha(sucursalId: string, desde: string, hasta: string): Promise<PaqueteData[]> {
     const snap = await firestore
       .collection('paquetesPrepagos')
-      .where('sucursalId', '==', sucursalId)
       .where('fecha', '>=', desde)
       .where('fecha', '<=', hasta)
       .get()
-    return snap.docs.map(docToPaquete)
+    return snap.docs.map(docToPaquete).filter((p) => p.sucursalId === sucursalId)
   }
 
   async decrementarUso(id: string): Promise<PaqueteData> {
