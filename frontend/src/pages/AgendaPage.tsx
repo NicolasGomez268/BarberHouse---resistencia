@@ -147,7 +147,7 @@ export function AgendaPage() {
   const [sellPackageForm, setSellPackageForm] = useState({
     clienteNombre: '',
     clienteTelefono: '',
-    cantidadTotal: 10,
+    cantidadTotal: '',
     precioTotal: '',
     metodoPago: 'EFECTIVO' as 'EFECTIVO' | 'TRANSFERENCIA' | 'TARJETA' | 'MIXTO',
     montoEfectivo: '',
@@ -605,7 +605,7 @@ export function AgendaPage() {
         sucursalId: (selectedSucursalId || 's1') as import('../types').SucursalId,
         clienteNombre: sellPackageForm.clienteNombre,
         clienteTelefono: sellPackageForm.clienteTelefono,
-        cantidadTotal: sellPackageForm.cantidadTotal,
+        cantidadTotal: Number(sellPackageForm.cantidadTotal),
         precioTotal: Number(sellPackageForm.precioTotal),
         metodoPago: sellPackageForm.metodoPago,
       }
@@ -619,7 +619,7 @@ export function AgendaPage() {
         await venderPaquete(base)
       }
       setIsSellPackageModalOpen(false)
-      setSellPackageForm({ clienteNombre: '', clienteTelefono: '', cantidadTotal: 10, precioTotal: '', metodoPago: 'EFECTIVO', montoEfectivo: '', montoTransferencia: '' })
+      setSellPackageForm({ clienteNombre: '', clienteTelefono: '', cantidadTotal: '', precioTotal: '', metodoPago: 'EFECTIVO', montoEfectivo: '', montoTransferencia: '' })
       setSellPackageMixtoMode(false)
       setShowPaquetes(true)
       fetchPaquetes(selectedSucursalId || undefined)
@@ -795,7 +795,7 @@ export function AgendaPage() {
             <button
               className="rounded-lg border border-blue-500 bg-transparent px-4 py-2 font-medium text-blue-400 transition hover:bg-blue-500/10"
               onClick={() => {
-                setSellPackageForm({ clienteNombre: '', clienteTelefono: '', cantidadTotal: 10, precioTotal: '', metodoPago: 'EFECTIVO', montoEfectivo: '', montoTransferencia: '' })
+                setSellPackageForm({ clienteNombre: '', clienteTelefono: '', cantidadTotal: '', precioTotal: '', metodoPago: 'EFECTIVO', montoEfectivo: '', montoTransferencia: '' })
                 setSellPackageMixtoMode(false)
                 setSellPackageError(null)
                 setIsSellPackageModalOpen(true)
@@ -1755,13 +1755,16 @@ export function AgendaPage() {
               <div className="flex gap-3">
                 <div className="flex-1">
                   <label className="mb-1 block text-xs font-bold text-[#a0a0a0]">Cantidad de turnos</label>
-                  <select
-                    className="w-full rounded-lg border border-[#3f3f3f] bg-[#111111] px-4 py-3 text-white"
-                    onChange={(e) => setSellPackageForm((f) => ({ ...f, cantidadTotal: Number(e.target.value) }))}
+                  <input
+                    className="w-full rounded-lg border border-[#3f3f3f] bg-[#111111] px-4 py-3 text-white [appearance:textfield]"
+                    inputMode="numeric"
+                    min="1"
+                    onChange={(e) => setSellPackageForm((f) => ({ ...f, cantidadTotal: e.target.value }))}
+                    placeholder="Ej: 8"
+                    required
+                    type="number"
                     value={sellPackageForm.cantidadTotal}
-                  >
-                    {[5, 10, 15, 20].map((n) => <option key={n} value={n}>{n} turnos</option>)}
-                  </select>
+                  />
                 </div>
                 <div className="flex-1">
                   <label className="mb-1 block text-xs font-bold text-[#a0a0a0]">Precio total $</label>
@@ -1841,7 +1844,7 @@ export function AgendaPage() {
               </button>
               <button
                 className="rounded-lg bg-blue-600 px-4 py-3 font-bold text-white transition hover:bg-blue-500 disabled:opacity-50"
-                disabled={!sellPackageForm.precioTotal || !sellPackageForm.clienteTelefono}
+                disabled={!sellPackageForm.precioTotal || !sellPackageForm.clienteTelefono || !sellPackageForm.cantidadTotal}
                 type="submit"
               >
                 Registrar paquete
