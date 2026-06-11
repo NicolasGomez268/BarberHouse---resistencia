@@ -740,7 +740,7 @@ export function AgendaPage() {
             >
               <span className="font-bold text-white">Turnos Fijos Activos</span>
               <span className="rounded-full bg-[#1a1700] px-2 py-0.5 text-xs font-bold text-[#f5c518]">
-                {turnosFijos.filter((tf) => tf.fechasAgendadas.includes(selectedDate ?? todayKey)).length}
+                {turnosFijos.filter((tf) => tf.fechasAgendadas.includes(selectedDate ?? todayKey) && (!selectedBarberId || tf.barberoId === selectedBarberId)).length}
               </span>
               <span className="text-sm text-[#f5c518]">{showTurnosFijos ? 'Ocultar' : 'Ver'}</span>
             </button>
@@ -774,6 +774,7 @@ export function AgendaPage() {
               {(() => {
                 const normalSearch = searchFijos.trim().toLowerCase()
                 const fijosFiltrados = turnosFijos.filter((tf) => {
+                  if (selectedBarberId && tf.barberoId !== selectedBarberId) return false
                   if (!normalSearch) return true
                   return (
                     tf.clienteNombre.toLowerCase().includes(normalSearch) ||
