@@ -66,8 +66,8 @@ export class AgendaController {
 
   async realizarTurno(request: Request, response: Response) {
     try {
-      const { metodoPago } = realizadoSchema.parse(request.body)
-      const turno = await agendaService.realizarTurno(pid(request), metodoPago)
+      const { metodoPago, montoEfectivo, montoTransferencia } = realizadoSchema.parse(request.body)
+      const turno = await agendaService.realizarTurno(pid(request), metodoPago, montoEfectivo, montoTransferencia)
       response.json({ turno })
     } catch (error) {
       handleError(response, error)

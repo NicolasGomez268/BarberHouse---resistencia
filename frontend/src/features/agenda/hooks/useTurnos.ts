@@ -66,9 +66,12 @@ export function useTurnos(servicios: Servicio[] = [], sucursalId?: SucursalId) {
     }
   }
 
-  async function marcarRealizado(id: string, metodoPago: Turno['metodoPago']) {
+  async function marcarRealizado(id: string, metodoPago: Turno['metodoPago'], montoEfectivo?: number, montoTransferencia?: number) {
     try {
-      const { data } = await apiClient.patch<{ turno: Turno }>(`/agenda/${id}/realizado`, { metodoPago })
+      const body: Record<string, unknown> = { metodoPago }
+      if (montoEfectivo !== undefined) body['montoEfectivo'] = montoEfectivo
+      if (montoTransferencia !== undefined) body['montoTransferencia'] = montoTransferencia
+      const { data } = await apiClient.patch<{ turno: Turno }>(`/agenda/${id}/realizado`, body)
       setTurnos((prev) => prev.map((t) => (t.id === id ? data.turno : t)))
     } catch {
       setError('Error al marcar el turno como realizado')

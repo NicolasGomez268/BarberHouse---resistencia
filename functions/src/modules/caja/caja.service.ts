@@ -29,9 +29,19 @@ export class CajaService {
       ...turnos.map((turno) => {
         const barbero = barberos.get(turno.barberoId)
         const servicio = servicios.get(turno.servicioId)
-        const monto = servicio?.precio ?? 0
-        const metodo = turno.metodoPago as MetodoPago
-        serviciosPorMetodo[metodo] += monto
+        const isMixto = turno.metodoPago === 'MIXTO'
+        const montoEfectivo = turno.montoEfectivo ?? 0
+        const montoTransferencia = turno.montoTransferencia ?? 0
+        let monto: number
+        if (isMixto) {
+          serviciosPorMetodo['EFECTIVO'] += montoEfectivo
+          serviciosPorMetodo['TRANSFERENCIA'] += montoTransferencia
+          monto = montoEfectivo + montoTransferencia
+        } else {
+          const metodo = turno.metodoPago as MetodoPago
+          monto = servicio?.precio ?? 0
+          serviciosPorMetodo[metodo] += monto
+        }
         return {
           id: turno.id,
           tipo: 'servicio' as const,
@@ -39,7 +49,8 @@ export class CajaService {
           descripcion: `${turno.clienteNombre} · ${servicio?.nombre ?? turno.servicioId}`,
           detalle: barbero?.nombre ?? turno.barberoId,
           monto,
-          metodoPago: metodo,
+          metodoPago: turno.metodoPago,
+          ...(isMixto ? { montoEfectivo, montoTransferencia } : {}),
         }
       }),
       ...ventas.map((venta) => {

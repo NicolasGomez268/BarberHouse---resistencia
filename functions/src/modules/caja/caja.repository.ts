@@ -9,6 +9,8 @@ export type TurnoParaCaja = {
   fecha: string
   hora: string
   metodoPago: string
+  montoEfectivo?: number
+  montoTransferencia?: number
 }
 
 export type VentaParaCaja = {
@@ -65,6 +67,8 @@ export class CajaRepository {
         fecha: d['fecha'],
         hora: d['hora'] ?? '00:00',
         metodoPago: d['metodoPago'],
+        montoEfectivo: d['montoEfectivo'],
+        montoTransferencia: d['montoTransferencia'],
       }
     })
   }

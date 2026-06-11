@@ -62,8 +62,8 @@ export class AgendaService {
     return agendaRepository.insertTurno({ ...input, creadoPor, estado: 'PENDIENTE' })
   }
 
-  realizarTurno(id: string, metodoPago: string): Promise<TurnoData> {
-    return agendaRepository.patchTurnoRealizado(id, metodoPago)
+  realizarTurno(id: string, metodoPago: string, montoEfectivo?: number, montoTransferencia?: number): Promise<TurnoData> {
+    return agendaRepository.patchTurnoRealizado(id, metodoPago, montoEfectivo, montoTransferencia)
   }
 
   async updateTurno(id: string, input: UpdateTurnoInput): Promise<TurnoData> {

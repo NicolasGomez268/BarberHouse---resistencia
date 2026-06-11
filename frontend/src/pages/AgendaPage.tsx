@@ -136,6 +136,9 @@ export function AgendaPage() {
   const [turnoFijoSeleccionado, setTurnoFijoSeleccionado] = useState<TurnoFijo | null>(null)
   const [selectedTurno, setSelectedTurno] = useState<Turno | null>(null)
   const [paymentTurno, setPaymentTurno] = useState<Turno | null>(null)
+  const [mixtoMode, setMixtoMode] = useState(false)
+  const [mixtoEfectivo, setMixtoEfectivo] = useState('')
+  const [mixtoTransferencia, setMixtoTransferencia] = useState('')
   const [cancelingTurno, setCancelingTurno] = useState<Turno | null>(null)
   const [assigningTurno, setAssigningTurno] = useState<Turno | null>(null)
   const [editingTurno, setEditingTurno] = useState<Turno | null>(null)
@@ -410,9 +413,16 @@ export function AgendaPage() {
     return `Hola ${turno.clienteNombre ?? ''}, te avisamos que tu turno en BarberHouse del ${turno.fecha ?? selectedDate ?? ''} a las ${turno.hora ?? ''} fue cancelado. Disculpa las molestias.`
   }
 
-  function markAsPaid(turno: Turno, metodoPago: MetodoPago) {
-    marcarRealizado(turno.id, metodoPago)
+  function closePaymentModal() {
     setPaymentTurno(null)
+    setMixtoMode(false)
+    setMixtoEfectivo('')
+    setMixtoTransferencia('')
+  }
+
+  function markAsPaid(turno: Turno, metodoPago: MetodoPago, montoEfectivo?: number, montoTransferencia?: number) {
+    marcarRealizado(turno.id, metodoPago, montoEfectivo, montoTransferencia)
+    closePaymentModal()
     setSelectedTurno(null)
   }
 
@@ -422,7 +432,7 @@ export function AgendaPage() {
     } else {
       marcarNoAsistio(turno.id)
     }
-    setPaymentTurno(null)
+    closePaymentModal()
     setSelectedTurno(null)
   }
 
@@ -1288,40 +1298,103 @@ export function AgendaPage() {
       {paymentTurno ? (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4">
           <section className="w-full max-w-md rounded-xl border border-[#2f2f2f] bg-[#050505] p-6 text-white shadow-2xl">
-            <h2 className="text-2xl font-bold">Método de pago</h2>
-            <p className="mt-2 text-sm text-[#a0a0a0]">
-              Seleccioná cómo pagó {paymentTurno.clienteNombre} o marcá que no asistió.
-            </p>
-            <div className="mt-6 grid gap-3 sm:grid-cols-2">
-              <button
-                className="rounded-lg bg-[#f5c518] px-4 py-3 font-bold text-black transition hover:bg-[#f5c518]/90"
-                onClick={() => markAsPaid(paymentTurno, 'EFECTIVO')}
-                type="button"
-              >
-                Efectivo
-              </button>
-              <button
-                className="rounded-lg border border-[#2f2f2f] bg-[#111111] px-4 py-3 font-bold text-white transition hover:border-[#f5c518]"
-                onClick={() => markAsPaid(paymentTurno, 'TRANSFERENCIA')}
-                type="button"
-              >
-                Transferencia
-              </button>
-            </div>
-            <button
-              className="mt-3 w-full rounded-lg border border-[#5f2d2d] bg-[#2a1618] px-4 py-3 font-bold text-[#fca5a5] transition hover:border-[#ef4444]"
-              onClick={() => markAsNoShow(paymentTurno)}
-              type="button"
-            >
-              No asistió
-            </button>
-            <button
-              className="mt-3 w-full rounded-lg bg-[#3f3f3f] px-4 py-3 text-white transition hover:bg-[#6b6b6b]"
-              onClick={() => setPaymentTurno(null)}
-              type="button"
-            >
-              Volver
-            </button>
+            {mixtoMode ? (
+              <>
+                <h2 className="text-2xl font-bold">Pago mixto</h2>
+                <p className="mt-2 text-sm text-[#a0a0a0]">
+                  Ingresá cuánto pagó en cada método.
+                  {(() => {
+                    const precio = servicios.find((s) => s.id === paymentTurno.servicioId)?.precio
+                    return precio ? ` Servicio: $${precio.toLocaleString('es-AR')}` : ''
+                  })()}
+                </p>
+                <div className="mt-5 space-y-4">
+                  <label className="block">
+                    <span className="text-sm font-bold">Efectivo $</span>
+                    <input
+                      className="mt-1 w-full rounded-lg border border-[#3f3f3f] bg-[#111111] px-4 py-3 text-white outline-none focus:border-[#f5c518]"
+                      inputMode="decimal"
+                      min="0"
+                      onChange={(e) => setMixtoEfectivo(e.target.value)}
+                      placeholder="0"
+                      type="number"
+                      value={mixtoEfectivo}
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-sm font-bold">Transferencia $</span>
+                    <input
+                      className="mt-1 w-full rounded-lg border border-[#3f3f3f] bg-[#111111] px-4 py-3 text-white outline-none focus:border-[#f5c518]"
+                      inputMode="decimal"
+                      min="0"
+                      onChange={(e) => setMixtoTransferencia(e.target.value)}
+                      placeholder="0"
+                      type="number"
+                      value={mixtoTransferencia}
+                    />
+                  </label>
+                </div>
+                <button
+                  className="mt-5 w-full rounded-lg bg-[#f5c518] px-4 py-3 font-bold text-black disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={Number(mixtoEfectivo) <= 0 || Number(mixtoTransferencia) <= 0}
+                  onClick={() => markAsPaid(paymentTurno, 'MIXTO', Number(mixtoEfectivo), Number(mixtoTransferencia))}
+                  type="button"
+                >
+                  Confirmar pago mixto
+                </button>
+                <button
+                  className="mt-3 w-full rounded-lg bg-[#3f3f3f] px-4 py-3 text-white transition hover:bg-[#6b6b6b]"
+                  onClick={() => setMixtoMode(false)}
+                  type="button"
+                >
+                  Volver
+                </button>
+              </>
+            ) : (
+              <>
+                <h2 className="text-2xl font-bold">Método de pago</h2>
+                <p className="mt-2 text-sm text-[#a0a0a0]">
+                  Seleccioná cómo pagó {paymentTurno.clienteNombre} o marcá que no asistió.
+                </p>
+                <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                  <button
+                    className="rounded-lg bg-[#f5c518] px-4 py-3 font-bold text-black transition hover:brightness-110"
+                    onClick={() => markAsPaid(paymentTurno, 'EFECTIVO')}
+                    type="button"
+                  >
+                    Efectivo
+                  </button>
+                  <button
+                    className="rounded-lg border border-[#2f2f2f] bg-[#111111] px-4 py-3 font-bold text-white transition hover:border-[#f5c518]"
+                    onClick={() => markAsPaid(paymentTurno, 'TRANSFERENCIA')}
+                    type="button"
+                  >
+                    Transferencia
+                  </button>
+                  <button
+                    className="rounded-lg border border-[#2f2f2f] bg-[#111111] px-4 py-3 font-bold text-white transition hover:border-[#f5c518] sm:col-span-2"
+                    onClick={() => { setMixtoMode(true); setMixtoEfectivo(''); setMixtoTransferencia('') }}
+                    type="button"
+                  >
+                    Mixto (efectivo + transferencia)
+                  </button>
+                </div>
+                <button
+                  className="mt-3 w-full rounded-lg border border-[#5f2d2d] bg-[#2a1618] px-4 py-3 font-bold text-[#fca5a5] transition hover:border-[#ef4444]"
+                  onClick={() => markAsNoShow(paymentTurno)}
+                  type="button"
+                >
+                  No asistió
+                </button>
+                <button
+                  className="mt-3 w-full rounded-lg bg-[#3f3f3f] px-4 py-3 text-white transition hover:bg-[#6b6b6b]"
+                  onClick={closePaymentModal}
+                  type="button"
+                >
+                  Volver
+                </button>
+              </>
+            )}
           </section>
         </div>
       ) : null}

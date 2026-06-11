@@ -1,7 +1,8 @@
 export type ID = string
 
 export type Estado = 'PENDIENTE' | 'CONFIRMADO' | 'REALIZADO' | 'CANCELADO' | 'NO_ASISTIO' | 'AUSENTE_FIJO'
-export type MetodoPago = 'EFECTIVO' | 'TRANSFERENCIA' | 'TARJETA'
+export type MetodoPagoCaja = 'EFECTIVO' | 'TRANSFERENCIA' | 'TARJETA'
+export type MetodoPago = MetodoPagoCaja | 'MIXTO'
 export type SucursalId = 's1' | 's2'
 
 export type Usuario = {
@@ -67,6 +68,8 @@ export type Turno = {
   clienteTelefono?: string
   estado: Estado | 'pendiente' | 'confirmado' | 'cancelado' | 'finalizado'
   metodoPago?: MetodoPago
+  montoEfectivo?: number
+  montoTransferencia?: number
   esFijo?: boolean
   turnoFijoId?: string
   esReemplazoFijo?: boolean
@@ -126,7 +129,7 @@ export type MovimientoCaja = {
   fecha: string
 }
 
-export type MontosPorMetodo = Record<MetodoPago, number>
+export type MontosPorMetodo = Record<MetodoPagoCaja, number>
 
 export type CajaMovimiento = {
   id: ID
@@ -136,6 +139,8 @@ export type CajaMovimiento = {
   detalle: string
   monto: number
   metodoPago: MetodoPago
+  montoEfectivo?: number
+  montoTransferencia?: number
 }
 
 export type CajaDiariaResumen = {

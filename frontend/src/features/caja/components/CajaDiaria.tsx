@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { CajaDiariaResumen, CajaMovimiento, MetodoPago } from '../../../types'
+import type { CajaDiariaResumen, CajaMovimiento, MetodoPago, MetodoPagoCaja } from '../../../types'
 
-const methods: MetodoPago[] = ['EFECTIVO', 'TRANSFERENCIA', 'TARJETA']
+const methods: MetodoPagoCaja[] = ['EFECTIVO', 'TRANSFERENCIA', 'TARJETA']
 const ITEMS_POR_PAGINA = 10
 
 function money(value: number) {
@@ -9,7 +9,10 @@ function money(value: number) {
 }
 
 function methodLabel(method: MetodoPago) {
-  return method === 'EFECTIVO' ? 'Efectivo' : method === 'TRANSFERENCIA' ? 'Transferencia' : 'Tarjeta'
+  if (method === 'EFECTIVO') return 'Efectivo'
+  if (method === 'TRANSFERENCIA') return 'Transferencia'
+  if (method === 'TARJETA') return 'Tarjeta'
+  return 'Mixto'
 }
 
 export function CajaDiaria({ data }: { data: CajaDiariaResumen }) {
@@ -101,14 +104,29 @@ function PaymentTable({ title, totals }: { title: string; totals: Record<MetodoP
 }
 
 function MovementRow({ movement }: { movement: CajaMovimiento }) {
+  const isMixto = movement.metodoPago === 'MIXTO'
   return (
-    <div className="grid gap-2 rounded-lg bg-surface-deep p-3 text-sm md:grid-cols-[70px_minmax(0,1fr)_120px_120px] md:items-center">
+    <div className="grid gap-2 rounded-lg bg-surface-deep p-3 text-sm md:grid-cols-[70px_minmax(0,1fr)_140px_120px] md:items-center">
       <span className="font-bold text-accent">{movement.hora}</span>
       <div className="min-w-0">
         <p className="truncate font-bold">{movement.descripcion}</p>
         <p className="truncate text-text-secondary">{movement.detalle}</p>
       </div>
-      <span className="truncate text-text-secondary">{methodLabel(movement.metodoPago)}</span>
+      {isMixto ? (
+        <div className="space-y-1">
+          <span className="inline-block rounded-full border border-blue-500/40 bg-blue-500/20 px-2 py-0.5 text-xs font-bold text-blue-300">
+            MIXTO
+          </span>
+          {movement.montoEfectivo ? (
+            <p className="text-xs text-text-secondary">Ef: {money(movement.montoEfectivo)}</p>
+          ) : null}
+          {movement.montoTransferencia ? (
+            <p className="text-xs text-text-secondary">Tr: {money(movement.montoTransferencia)}</p>
+          ) : null}
+        </div>
+      ) : (
+        <span className="truncate text-text-secondary">{methodLabel(movement.metodoPago)}</span>
+      )}
       <strong className="text-right">{money(movement.monto)}</strong>
     </div>
   )

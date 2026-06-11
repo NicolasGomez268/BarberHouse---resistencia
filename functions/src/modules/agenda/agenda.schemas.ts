@@ -4,7 +4,7 @@ export const sucursalIdSchema = z.enum(['s1', 's2'])
 
 export const estadoSchema = z.enum(['PENDIENTE', 'CONFIRMADO', 'REALIZADO', 'CANCELADO', 'NO_ASISTIO', 'AUSENTE_FIJO'])
 
-export const metodoPagoSchema = z.enum(['EFECTIVO', 'TRANSFERENCIA', 'TARJETA'])
+export const metodoPagoSchema = z.enum(['EFECTIVO', 'TRANSFERENCIA', 'TARJETA', 'MIXTO'])
 
 // GET /agenda — query params
 export const turnosFiltersSchema = z.object({
@@ -43,6 +43,8 @@ export const turnoDataSchema = z.object({
   horaFin: z.string().optional(),
   estado: estadoSchema,
   metodoPago: metodoPagoSchema.optional(),
+  montoEfectivo: z.number().optional(),
+  montoTransferencia: z.number().optional(),
   esFijo: z.boolean().optional(),
   turnoFijoId: z.string().optional(),
   esReemplazoFijo: z.boolean().optional(),
@@ -53,9 +55,18 @@ export const turnoDataSchema = z.object({
 export type TurnoData = z.infer<typeof turnoDataSchema>
 
 // PATCH /agenda/:id/realizado
-export const realizadoSchema = z.object({
-  metodoPago: metodoPagoSchema,
-})
+export const realizadoSchema = z
+  .object({
+    metodoPago: metodoPagoSchema,
+    montoEfectivo: z.number().positive().optional(),
+    montoTransferencia: z.number().positive().optional(),
+  })
+  .refine(
+    (data) =>
+      data.metodoPago !== 'MIXTO' ||
+      ((data.montoEfectivo ?? 0) > 0 && (data.montoTransferencia ?? 0) > 0),
+    { message: 'Para pago mixto se requieren montoEfectivo y montoTransferencia positivos' },
+  )
 export type RealizadoInput = z.infer<typeof realizadoSchema>
 
 // POST /agenda/:id/reemplazo-fijo

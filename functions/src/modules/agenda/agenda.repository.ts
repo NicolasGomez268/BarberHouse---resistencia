@@ -118,11 +118,19 @@ export class AgendaRepository {
     return docToTurno(await ref.get())
   }
 
-  async patchTurnoRealizado(id: string, metodoPago: string): Promise<TurnoData> {
+  async patchTurnoRealizado(
+    id: string,
+    metodoPago: string,
+    montoEfectivo?: number,
+    montoTransferencia?: number,
+  ): Promise<TurnoData> {
     const ref = firestore.collection('turnos').doc(id)
     const doc = await ref.get()
     if (!doc.exists) throw new Error('TURNO_NOT_FOUND')
-    await ref.update({ estado: 'REALIZADO', metodoPago })
+    const fields: Record<string, unknown> = { estado: 'REALIZADO', metodoPago }
+    if (montoEfectivo !== undefined) fields['montoEfectivo'] = montoEfectivo
+    if (montoTransferencia !== undefined) fields['montoTransferencia'] = montoTransferencia
+    await ref.update(fields)
     return docToTurno(await ref.get())
   }
 
