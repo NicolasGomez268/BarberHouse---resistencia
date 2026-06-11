@@ -227,10 +227,15 @@ export function AgendaPage() {
         const dateToShow = selectedDate ?? todayKey
         return turno.fecha === dateToShow && isActive && !isHistoricalTurno(turno, today)
       }
-      if (turnosListMode === 'upcoming') return isActive && !isHistoricalTurno(turno, today)
+      if (turnosListMode === 'upcoming') {
+        const dateToShow = selectedDate ?? todayKey
+        return turno.fecha === dateToShow && isActive && !isHistoricalTurno(turno, today)
+      }
       if (turnosListMode === 'today') return turno.fecha === todayKey && isActive && !isHistoricalTurno(turno, today)
       if (turnosListMode === 'past') {
+        const dateToShow = selectedDate ?? todayKey
         return (
+          turno.fecha === dateToShow &&
           !isCancelledTurno(turno) &&
           !isNoShowTurno(turno) &&
           !isAusenteFijoTurno(turno) &&
@@ -245,10 +250,11 @@ export function AgendaPage() {
   const totalTurnosPages = Math.max(1, Math.ceil(displayedTurnos.length / turnosPerPage))
   const paginatedTurnos = displayedTurnos.slice((turnosPage - 1) * turnosPerPage, turnosPage * turnosPerPage)
   const listTitle = (() => {
-    if (turnosListMode === 'selected-day') return `Turnos del ${selectedDate ?? todayKey}`
-    if (turnosListMode === 'upcoming') return 'Turnos próximos'
+    const dateToShow = selectedDate ?? todayKey
+    if (turnosListMode === 'selected-day') return `Turnos del ${dateToShow}`
+    if (turnosListMode === 'upcoming') return `Próximos del ${dateToShow}`
     if (turnosListMode === 'today') return `Turnos de hoy ${todayKey}`
-    if (turnosListMode === 'past') return 'Historial de turnos pasados'
+    if (turnosListMode === 'past') return `Pasados del ${dateToShow}`
     if (turnosListMode === 'cancelled') return 'Turnos cancelados'
     return 'Turnos con no asistencia'
   })()
