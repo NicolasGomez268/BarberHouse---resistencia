@@ -47,7 +47,7 @@ export function useTurnos(servicios: Servicio[] = [], sucursalId?: SucursalId) {
     const servicio = servicios.find((s) => s.id === params.serviceId)
     const horaFin = servicio ? addMinutes(params.startTime, servicio.duracionMinutos) : undefined
     try {
-      const { data } = await apiClient.post<{ turno: Turno }>('/agenda', {
+      const body: Record<string, unknown> = {
         sucursalId: params.sucursalId,
         barberoId: params.barberId,
         servicioId: params.serviceId,
@@ -56,7 +56,12 @@ export function useTurnos(servicios: Servicio[] = [], sucursalId?: SucursalId) {
         fecha: params.date,
         hora: params.startTime,
         horaFin,
-      })
+      }
+      if (params.paquetePrepagId) {
+        body['paquetePrepagId'] = params.paquetePrepagId
+        body['prepagado'] = true
+      }
+      const { data } = await apiClient.post<{ turno: Turno }>('/agenda', body)
       setTurnos((prev) => [...prev, data.turno])
     } catch (error) {
       if (isAxiosError(error) && error.response?.status === 409) {
@@ -137,7 +142,7 @@ export function useTurnos(servicios: Servicio[] = [], sucursalId?: SucursalId) {
     }
   }
 
-  async function crearTurnoFijo(datos: Omit<TurnoFijo, 'id' | 'proximaFecha'>) {
+  async function crearTurnoFijo(datos: Omit<TurnoFijo, 'id' | 'proximaFecha'> & { paquetePrepagId?: string }) {
     const proximaFecha = getProximaFecha(datos.fechasAgendadas)
     try {
       const { data } = await apiClient.post<{ turnoFijo: TurnoFijo }>('/agenda/fijos', { ...datos, proximaFecha })

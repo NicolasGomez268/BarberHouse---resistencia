@@ -11,6 +11,7 @@ export type TurnoParaCaja = {
   metodoPago: string
   montoEfectivo?: number
   montoTransferencia?: number
+  prepagado?: boolean
 }
 
 export type VentaParaCaja = {
@@ -69,6 +70,7 @@ export class CajaRepository {
         metodoPago: d['metodoPago'],
         montoEfectivo: d['montoEfectivo'],
         montoTransferencia: d['montoTransferencia'],
+        prepagado: d['prepagado'],
       }
     })
   }

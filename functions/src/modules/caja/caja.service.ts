@@ -1,3 +1,4 @@
+import { paquetesRepository } from '../paquetes/paquetes.repository'
 import { cajaRepository } from './caja.repository'
 import type { CajaDiariaParams, LiquidacionParams, MetricasParams } from './caja.schemas'
 
@@ -14,9 +15,10 @@ export class CajaService {
 
   async calcularCajaDiaria(params: CajaDiariaParams) {
     const { fecha, sucursalId } = params
-    const [turnos, ventas, barberos, servicios, productos] = await Promise.all([
+    const [turnos, ventas, paquetes, barberos, servicios, productos] = await Promise.all([
       cajaRepository.findTurnosRealizados(sucursalId, fecha, fecha),
       cajaRepository.findVentas(sucursalId, fecha, fecha),
+      paquetesRepository.findByFecha(sucursalId, fecha, fecha),
       cajaRepository.getBarberos(),
       cajaRepository.getServicios(),
       cajaRepository.getProductos(),
@@ -24,16 +26,20 @@ export class CajaService {
 
     const serviciosPorMetodo = emptyMontos()
     const productosPorMetodo = emptyMontos()
+    const paquetesPorMetodo = emptyMontos()
 
     const movimientos = [
       ...turnos.map((turno) => {
         const barbero = barberos.get(turno.barberoId)
         const servicio = servicios.get(turno.servicioId)
+        const isPrepago = turno.metodoPago === 'PREPAGO' || turno.prepagado === true
         const isMixto = turno.metodoPago === 'MIXTO'
         const montoEfectivo = turno.montoEfectivo ?? 0
         const montoTransferencia = turno.montoTransferencia ?? 0
         let monto: number
-        if (isMixto) {
+        if (isPrepago) {
+          monto = 0
+        } else if (isMixto) {
           serviciosPorMetodo['EFECTIVO'] += montoEfectivo
           serviciosPorMetodo['TRANSFERENCIA'] += montoTransferencia
           monto = montoEfectivo + montoTransferencia
@@ -49,8 +55,8 @@ export class CajaService {
           descripcion: `${turno.clienteNombre} · ${servicio?.nombre ?? turno.servicioId}`,
           detalle: barbero?.nombre ?? turno.barberoId,
           monto,
-          metodoPago: turno.metodoPago,
-          ...(isMixto ? { montoEfectivo, montoTransferencia } : {}),
+          metodoPago: isPrepago ? 'PREPAGO' : turno.metodoPago,
+          ...(isMixto && !isPrepago ? { montoEfectivo, montoTransferencia } : {}),
         }
       }),
       ...ventas.map((venta) => {
@@ -69,16 +75,42 @@ export class CajaService {
       }),
     ].sort((a, b) => a.hora.localeCompare(b.hora))
 
+    const paquetesMovimientos = paquetes.map((p) => {
+      const isMixto = p.metodoPago === 'MIXTO'
+      const montoEfectivo = p.montoEfectivo ?? 0
+      const montoTransferencia = p.montoTransferencia ?? 0
+      if (isMixto) {
+        paquetesPorMetodo['EFECTIVO'] += montoEfectivo
+        paquetesPorMetodo['TRANSFERENCIA'] += montoTransferencia
+      } else {
+        const metodo = p.metodoPago as MetodoPago
+        paquetesPorMetodo[metodo] += p.precioTotal
+      }
+      return {
+        id: p.id,
+        tipo: 'paquete' as const,
+        hora: p.hora,
+        descripcion: `${p.clienteNombre} · Paquete ${p.cantidadTotal} turnos`,
+        detalle: `Usado: ${p.cantidadUsada}/${p.cantidadTotal}`,
+        monto: p.precioTotal,
+        metodoPago: p.metodoPago,
+        ...(isMixto ? { montoEfectivo, montoTransferencia } : {}),
+      }
+    })
+
     const totalServicios = Object.values(serviciosPorMetodo).reduce((sum, v) => sum + v, 0)
     const totalProductos = Object.values(productosPorMetodo).reduce((sum, v) => sum + v, 0)
+    const totalPaquetes = Object.values(paquetesPorMetodo).reduce((sum, v) => sum + v, 0)
 
     return {
       turnosRealizados: turnos.length,
       ventasProductos: totalProductos,
-      totalDia: totalServicios + totalProductos,
+      totalDia: totalServicios + totalProductos + totalPaquetes,
       serviciosPorMetodo,
       productosPorMetodo,
+      paquetesPorMetodo,
       movimientos,
+      paquetesMovimientos,
     }
   }
 

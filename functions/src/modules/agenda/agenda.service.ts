@@ -1,4 +1,5 @@
 import { ConflictError } from '../../shared/errors'
+import { paquetesRepository } from '../paquetes/paquetes.repository'
 import { agendaRepository } from './agenda.repository'
 import type { TurnoInsertData } from './agenda.repository'
 import type {
@@ -59,7 +60,15 @@ export class AgendaService {
 
   async createTurno(input: CreateTurnoInput, creadoPor: string): Promise<TurnoData> {
     await this.checkSlotConflict(input.barberoId, input.fecha, input.hora)
-    return agendaRepository.insertTurno({ ...input, creadoPor, estado: 'PENDIENTE' })
+    if (input.paquetePrepagId) {
+      await paquetesRepository.decrementarUso(input.paquetePrepagId)
+    }
+    return agendaRepository.insertTurno({
+      ...input,
+      prepagado: input.paquetePrepagId ? true : input.prepagado,
+      creadoPor,
+      estado: 'PENDIENTE',
+    })
   }
 
   realizarTurno(id: string, metodoPago: string, montoEfectivo?: number, montoTransferencia?: number): Promise<TurnoData> {
@@ -209,6 +218,12 @@ export class AgendaService {
     const fechasPendientes = fechasFuturas.filter((f) => !existingFechas.has(f))
     if (fechasPendientes.length === 0) return []
 
+    if (fijo.paquetePrepagId) {
+      for (const _ of fechasPendientes) {
+        await paquetesRepository.decrementarUso(fijo.paquetePrepagId)
+      }
+    }
+
     const turnosData: TurnoInsertData[] = fechasPendientes.map((fecha) => ({
       sucursalId: fijo.sucursalId,
       barberoId: fijo.barberoId,
@@ -220,6 +235,8 @@ export class AgendaService {
       estado: 'PENDIENTE',
       esFijo: true,
       turnoFijoId: id,
+      prepagado: fijo.paquetePrepagId ? true : fijo.prepagado,
+      paquetePrepagId: fijo.paquetePrepagId,
       creadoPor,
     }))
 

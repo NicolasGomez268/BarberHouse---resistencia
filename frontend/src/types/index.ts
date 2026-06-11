@@ -2,7 +2,7 @@ export type ID = string
 
 export type Estado = 'PENDIENTE' | 'CONFIRMADO' | 'REALIZADO' | 'CANCELADO' | 'NO_ASISTIO' | 'AUSENTE_FIJO'
 export type MetodoPagoCaja = 'EFECTIVO' | 'TRANSFERENCIA' | 'TARJETA'
-export type MetodoPago = MetodoPagoCaja | 'MIXTO'
+export type MetodoPago = MetodoPagoCaja | 'MIXTO' | 'PREPAGO'
 export type SucursalId = 's1' | 's2'
 
 export type Usuario = {
@@ -74,6 +74,8 @@ export type Turno = {
   turnoFijoId?: string
   esReemplazoFijo?: boolean
   turnoOriginalId?: string
+  prepagado?: boolean
+  paquetePrepagId?: string
   notas?: string
   creadoPor?: string
   cliente?: string
@@ -92,6 +94,24 @@ export type TurnoFijo = {
   hora: string
   fechasAgendadas: string[]
   proximaFecha: string
+  prepagado?: boolean
+  paquetePrepagId?: string
+}
+
+export type PaquetePrepago = {
+  id: string
+  sucursalId: string
+  clienteNombre: string
+  clienteTelefono: string
+  cantidadTotal: number
+  cantidadUsada: number
+  precioTotal: number
+  metodoPago: MetodoPago
+  montoEfectivo?: number
+  montoTransferencia?: number
+  fecha: string
+  hora: string
+  creadoPor?: string
 }
 
 export type Producto = {
@@ -133,7 +153,7 @@ export type MontosPorMetodo = Record<MetodoPagoCaja, number>
 
 export type CajaMovimiento = {
   id: ID
-  tipo: 'servicio' | 'producto'
+  tipo: 'servicio' | 'producto' | 'paquete'
   hora: string
   descripcion: string
   detalle: string
@@ -149,7 +169,9 @@ export type CajaDiariaResumen = {
   totalDia: number
   serviciosPorMetodo: MontosPorMetodo
   productosPorMetodo: MontosPorMetodo
+  paquetesPorMetodo: MontosPorMetodo
   movimientos: CajaMovimiento[]
+  paquetesMovimientos: CajaMovimiento[]
 }
 
 export type LiquidacionBarbero = {

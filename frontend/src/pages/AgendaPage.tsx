@@ -9,8 +9,9 @@ import { useTurnos } from '../features/agenda/hooks/useTurnos'
 import { getAvailableSlots } from '../features/agenda/lib/appointments'
 import { useEquipo } from '../features/equipo/hooks/useEquipo'
 import { useServicios } from '../features/servicios/hooks/useServicios'
+import { usePaquetes } from '../features/paquetes/hooks/usePaquetes'
 import { useAuth } from '../shared/hooks/useAuth'
-import type { MetodoPago, SucursalId, Turno, TurnoFijo } from '../types'
+import type { MetodoPago, PaquetePrepago, SucursalId, Turno, TurnoFijo } from '../types'
 
 type CalendarDay = {
   date: Date
@@ -139,6 +140,22 @@ export function AgendaPage() {
   const [mixtoMode, setMixtoMode] = useState(false)
   const [mixtoEfectivo, setMixtoEfectivo] = useState('')
   const [mixtoTransferencia, setMixtoTransferencia] = useState('')
+  const [paquetePrepagId, setPaquetePrepagId] = useState('')
+  const [activePaquetesForClient, setActivePaquetesForClient] = useState<PaquetePrepago[]>([])
+  const [isSellPackageModalOpen, setIsSellPackageModalOpen] = useState(false)
+  const [showPaquetes, setShowPaquetes] = useState(false)
+  const [sellPackageForm, setSellPackageForm] = useState({
+    clienteNombre: '',
+    clienteTelefono: '',
+    cantidadTotal: 10,
+    precioTotal: '',
+    metodoPago: 'EFECTIVO' as 'EFECTIVO' | 'TRANSFERENCIA' | 'TARJETA' | 'MIXTO',
+    montoEfectivo: '',
+    montoTransferencia: '',
+  })
+  const [sellPackageMixtoMode, setSellPackageMixtoMode] = useState(false)
+  const [sellPackageError, setSellPackageError] = useState<string | null>(null)
+  const { paquetes, fetchPaquetes, buscarPorTelefono, venderPaquete } = usePaquetes()
   const [cancelingTurno, setCancelingTurno] = useState<Turno | null>(null)
   const [assigningTurno, setAssigningTurno] = useState<Turno | null>(null)
   const [editingTurno, setEditingTurno] = useState<Turno | null>(null)
@@ -329,6 +346,25 @@ export function AgendaPage() {
       })
   }, [turnosFijos])
 
+  useEffect(() => {
+    const tel = turnoForm.clienteTelefono.trim()
+    if (tel.length < 6) {
+      setActivePaquetesForClient([])
+      setPaquetePrepagId('')
+      return
+    }
+    buscarPorTelefono(tel, selectedSucursalId || undefined)
+      .then((found) => {
+        setActivePaquetesForClient(found)
+        if (found.length === 0) setPaquetePrepagId('')
+      })
+      .catch(() => setActivePaquetesForClient([]))
+  }, [turnoForm.clienteTelefono])
+
+  useEffect(() => {
+    if (showPaquetes) fetchPaquetes(selectedSucursalId || undefined)
+  }, [showPaquetes, selectedSucursalId])
+
   function getTurnosForDate(dateKey: string) {
     return filteredTurnos.filter((turno) => turno.fecha === dateKey)
   }
@@ -346,10 +382,13 @@ export function AgendaPage() {
         startTime: turnoForm.hora,
         clienteNombre: turnoForm.clienteNombre,
         clienteTelefono: turnoForm.clienteTelefono || undefined,
+        paquetePrepagId: paquetePrepagId || undefined,
       })
       setSelectedDate(turnoForm.fecha)
       setTurnosPage(1)
       setIsTurnoModalOpen(false)
+      setPaquetePrepagId('')
+      setActivePaquetesForClient([])
       setTurnoForm((current) => ({ ...current, clienteNombre: '', clienteTelefono: '' }))
     } catch (err) {
       setTurnoFormError(err instanceof Error ? err.message : 'No se pudo crear el turno.')
@@ -558,6 +597,37 @@ export function AgendaPage() {
     setTurnoFijoSeleccionado(null)
   }
 
+  async function handleVenderPaquete(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setSellPackageError(null)
+    try {
+      const base = {
+        sucursalId: (selectedSucursalId || 's1') as import('../types').SucursalId,
+        clienteNombre: sellPackageForm.clienteNombre,
+        clienteTelefono: sellPackageForm.clienteTelefono,
+        cantidadTotal: sellPackageForm.cantidadTotal,
+        precioTotal: Number(sellPackageForm.precioTotal),
+        metodoPago: sellPackageForm.metodoPago,
+      }
+      if (sellPackageForm.metodoPago === 'MIXTO') {
+        await venderPaquete({
+          ...base,
+          montoEfectivo: Number(sellPackageForm.montoEfectivo),
+          montoTransferencia: Number(sellPackageForm.montoTransferencia),
+        })
+      } else {
+        await venderPaquete(base)
+      }
+      setIsSellPackageModalOpen(false)
+      setSellPackageForm({ clienteNombre: '', clienteTelefono: '', cantidadTotal: 10, precioTotal: '', metodoPago: 'EFECTIVO', montoEfectivo: '', montoTransferencia: '' })
+      setSellPackageMixtoMode(false)
+      setShowPaquetes(true)
+      fetchPaquetes(selectedSucursalId || undefined)
+    } catch {
+      setSellPackageError('No se pudo registrar el paquete. Verificá los datos.')
+    }
+  }
+
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white">
       <header className="flex items-center justify-between">
@@ -721,6 +791,18 @@ export function AgendaPage() {
               type="button"
             >
               + Turno Fijo
+            </button>
+            <button
+              className="rounded-lg border border-blue-500 bg-transparent px-4 py-2 font-medium text-blue-400 transition hover:bg-blue-500/10"
+              onClick={() => {
+                setSellPackageForm({ clienteNombre: '', clienteTelefono: '', cantidadTotal: 10, precioTotal: '', metodoPago: 'EFECTIVO', montoEfectivo: '', montoTransferencia: '' })
+                setSellPackageMixtoMode(false)
+                setSellPackageError(null)
+                setIsSellPackageModalOpen(true)
+              }}
+              type="button"
+            >
+              + Vender Paquete
             </button>
           </div>
 
@@ -925,6 +1007,61 @@ export function AgendaPage() {
         </section>
       ) : null}
 
+      {paquetes.length > 0 || showPaquetes ? (
+        <section className="mt-4 rounded-2xl border border-[#111111] bg-[#050505] p-4">
+          <button
+            className="flex items-center gap-2 text-left"
+            onClick={() => setShowPaquetes((v) => !v)}
+            type="button"
+          >
+            <span className="font-bold text-white">Paquetes Prepagos</span>
+            <span className="rounded-full bg-blue-500/20 px-2 py-0.5 text-xs font-bold text-blue-400">
+              {paquetes.filter((p) => p.cantidadUsada < p.cantidadTotal).length} activos
+            </span>
+            <span className="text-sm text-blue-400">{showPaquetes ? 'Ocultar' : 'Ver'}</span>
+          </button>
+          {showPaquetes ? (
+            <div className="mt-4 overflow-x-auto">
+              {paquetes.length === 0 ? (
+                <p className="text-sm text-[#a0a0a0]">Sin paquetes registrados.</p>
+              ) : (
+                <table className="w-full min-w-[640px] text-left text-sm">
+                  <thead className="text-[#a0a0a0]">
+                    <tr className="border-b border-[#242424]">
+                      <th className="py-3">Cliente</th>
+                      <th className="py-3">Teléfono</th>
+                      <th className="py-3">Turnos</th>
+                      <th className="py-3">Precio</th>
+                      <th className="py-3">Método</th>
+                      <th className="py-3">Fecha venta</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {paquetes.map((p) => {
+                      const agotado = p.cantidadUsada >= p.cantidadTotal
+                      return (
+                        <tr className={`border-b text-white ${agotado ? 'border-[#111111] opacity-50' : 'border-[#111111]'}`} key={p.id}>
+                          <td className="py-3 font-bold">{p.clienteNombre}</td>
+                          <td className="py-3 text-[#a0a0a0]">{p.clienteTelefono}</td>
+                          <td className="py-3">
+                            <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${agotado ? 'bg-[#3f3f3f] text-[#a0a0a0]' : 'bg-blue-500/20 text-blue-300'}`}>
+                              {p.cantidadUsada}/{p.cantidadTotal}
+                            </span>
+                          </td>
+                          <td className="py-3 text-[#a0a0a0]">${p.precioTotal.toLocaleString('es-AR')}</td>
+                          <td className="py-3 text-[#a0a0a0]">{p.metodoPago}</td>
+                          <td className="py-3 text-[#a0a0a0]">{p.fecha}</td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+
       <section className="mt-6 rounded-2xl border border-[#111111] bg-[#050505] p-4">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
@@ -973,6 +1110,11 @@ export function AgendaPage() {
                   type="button"
                 >
                   <span>{turno.hora} · {turno.clienteNombre}</span>
+                  {turno.prepagado && !isRealizado ? (
+                    <span className="ml-3 rounded-full border border-blue-500/40 bg-blue-500/15 px-2 py-0.5 text-xs font-bold text-blue-400">
+                      PREPAGO
+                    </span>
+                  ) : null}
                   {isRealizado ? (
                     <span className="ml-3 rounded-full border border-green-800 bg-green-950 px-2 py-0.5 text-xs font-bold text-green-400">
                       REALIZADO
@@ -1113,10 +1255,16 @@ export function AgendaPage() {
               </a>
               <button
                 className="rounded-lg border border-[#22543d] bg-[#123524] px-4 py-2.5 text-sm font-bold text-[#86efac] transition hover:border-[#22c55e]"
-                onClick={() => setPaymentTurno(selectedTurno)}
+                onClick={() => {
+                  if (selectedTurno.prepagado) {
+                    markAsPaid(selectedTurno, 'PREPAGO')
+                  } else {
+                    setPaymentTurno(selectedTurno)
+                  }
+                }}
                 type="button"
               >
-                Asistió
+                {selectedTurno.prepagado ? 'Marcar asistencia' : 'Asistió'}
               </button>
               <button
                 className="rounded-lg border border-[#5f2d2d] bg-[#2a1618] px-4 py-2.5 text-sm font-bold text-[#fca5a5] transition hover:border-[#ef4444]"
@@ -1466,6 +1614,22 @@ export function AgendaPage() {
                 placeholder="Teléfono"
                 value={turnoForm.clienteTelefono}
               />
+              {activePaquetesForClient.length > 0 ? (
+                <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 px-4 py-3">
+                  <p className="text-xs font-bold text-blue-400 mb-2">
+                    🎟 Paquete prepago disponible ({activePaquetesForClient[0]!.cantidadTotal - activePaquetesForClient[0]!.cantidadUsada} turnos restantes)
+                  </p>
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      checked={paquetePrepagId === activePaquetesForClient[0]!.id}
+                      className="accent-blue-400"
+                      onChange={(e) => setPaquetePrepagId(e.target.checked ? activePaquetesForClient[0]!.id : '')}
+                      type="checkbox"
+                    />
+                    <span className="text-sm text-blue-300">Usar crédito del paquete (turno prepagado)</span>
+                  </label>
+                </div>
+              ) : null}
               <input
                 className="w-full rounded-lg border border-[#3f3f3f] bg-[#111111] px-4 py-3 text-white"
                 onChange={(event) => setTurnoForm((current) => ({ ...current, fecha: event.target.value }))}
@@ -1559,6 +1723,128 @@ export function AgendaPage() {
                 type="submit"
               >
                 Crear Turno
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : null}
+
+      {isSellPackageModalOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4">
+          <form
+            className="w-full max-w-md rounded-xl border border-[#2f2f2f] bg-[#050505] p-6 text-white shadow-2xl"
+            onSubmit={handleVenderPaquete}
+          >
+            <h2 className="text-2xl font-bold">Vender Paquete Prepago</h2>
+            <p className="mt-1 text-sm text-[#a0a0a0]">El cliente adelanta el pago de varios turnos.</p>
+            <div className="mt-5 space-y-4">
+              <input
+                className="w-full rounded-lg border border-[#3f3f3f] bg-[#111111] px-4 py-3 text-white"
+                onChange={(e) => setSellPackageForm((f) => ({ ...f, clienteNombre: e.target.value }))}
+                placeholder="Nombre del cliente"
+                required
+                value={sellPackageForm.clienteNombre}
+              />
+              <input
+                className="w-full rounded-lg border border-[#3f3f3f] bg-[#111111] px-4 py-3 text-white"
+                onChange={(e) => setSellPackageForm((f) => ({ ...f, clienteTelefono: e.target.value }))}
+                placeholder="Teléfono del cliente"
+                required
+                value={sellPackageForm.clienteTelefono}
+              />
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <label className="mb-1 block text-xs font-bold text-[#a0a0a0]">Cantidad de turnos</label>
+                  <select
+                    className="w-full rounded-lg border border-[#3f3f3f] bg-[#111111] px-4 py-3 text-white"
+                    onChange={(e) => setSellPackageForm((f) => ({ ...f, cantidadTotal: Number(e.target.value) }))}
+                    value={sellPackageForm.cantidadTotal}
+                  >
+                    {[5, 10, 15, 20].map((n) => <option key={n} value={n}>{n} turnos</option>)}
+                  </select>
+                </div>
+                <div className="flex-1">
+                  <label className="mb-1 block text-xs font-bold text-[#a0a0a0]">Precio total $</label>
+                  <input
+                    className="w-full rounded-lg border border-[#3f3f3f] bg-[#111111] px-4 py-3 text-white"
+                    inputMode="decimal"
+                    min="1"
+                    onChange={(e) => setSellPackageForm((f) => ({ ...f, precioTotal: e.target.value }))}
+                    placeholder="0"
+                    required
+                    type="number"
+                    value={sellPackageForm.precioTotal}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-bold text-[#a0a0a0]">Método de pago</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {(['EFECTIVO', 'TRANSFERENCIA', 'TARJETA', 'MIXTO'] as const).map((m) => (
+                    <button
+                      className={`rounded-lg border px-3 py-2.5 text-sm font-bold transition ${
+                        sellPackageForm.metodoPago === m
+                          ? 'border-blue-500 bg-blue-500/20 text-blue-300'
+                          : 'border-[#2f2f2f] bg-[#111111] text-white hover:border-blue-500/50'
+                      }`}
+                      key={m}
+                      onClick={() => {
+                        setSellPackageForm((f) => ({ ...f, metodoPago: m, montoEfectivo: '', montoTransferencia: '' }))
+                        setSellPackageMixtoMode(m === 'MIXTO')
+                      }}
+                      type="button"
+                    >
+                      {m === 'EFECTIVO' ? 'Efectivo' : m === 'TRANSFERENCIA' ? 'Transferencia' : m === 'TARJETA' ? 'Tarjeta' : 'Mixto'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {sellPackageMixtoMode ? (
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="block">
+                    <span className="text-xs font-bold text-[#a0a0a0]">Efectivo $</span>
+                    <input
+                      className="mt-1 w-full rounded-lg border border-[#3f3f3f] bg-[#111111] px-4 py-3 text-white"
+                      inputMode="decimal"
+                      min="1"
+                      onChange={(e) => setSellPackageForm((f) => ({ ...f, montoEfectivo: e.target.value }))}
+                      placeholder="0"
+                      required
+                      type="number"
+                      value={sellPackageForm.montoEfectivo}
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-xs font-bold text-[#a0a0a0]">Transferencia $</span>
+                    <input
+                      className="mt-1 w-full rounded-lg border border-[#3f3f3f] bg-[#111111] px-4 py-3 text-white"
+                      inputMode="decimal"
+                      min="1"
+                      onChange={(e) => setSellPackageForm((f) => ({ ...f, montoTransferencia: e.target.value }))}
+                      placeholder="0"
+                      required
+                      type="number"
+                      value={sellPackageForm.montoTransferencia}
+                    />
+                  </label>
+                </div>
+              ) : null}
+              {sellPackageError ? <p className="text-sm font-bold text-red-300">{sellPackageError}</p> : null}
+            </div>
+            <div className="mt-6 grid grid-cols-2 gap-3">
+              <button
+                className="rounded-lg bg-[#3f3f3f] px-4 py-3"
+                onClick={() => setIsSellPackageModalOpen(false)}
+                type="button"
+              >
+                Cancelar
+              </button>
+              <button
+                className="rounded-lg bg-blue-600 px-4 py-3 font-bold text-white transition hover:bg-blue-500 disabled:opacity-50"
+                disabled={!sellPackageForm.precioTotal || !sellPackageForm.clienteTelefono}
+                type="submit"
+              >
+                Registrar paquete
               </button>
             </div>
           </form>

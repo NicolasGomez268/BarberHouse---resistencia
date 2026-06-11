@@ -4,7 +4,8 @@ export const sucursalIdSchema = z.enum(['s1', 's2'])
 
 export const estadoSchema = z.enum(['PENDIENTE', 'CONFIRMADO', 'REALIZADO', 'CANCELADO', 'NO_ASISTIO', 'AUSENTE_FIJO'])
 
-export const metodoPagoSchema = z.enum(['EFECTIVO', 'TRANSFERENCIA', 'TARJETA', 'MIXTO'])
+export const metodoPagoVentaSchema = z.enum(['EFECTIVO', 'TRANSFERENCIA', 'TARJETA', 'MIXTO'])
+export const metodoPagoSchema = z.enum(['EFECTIVO', 'TRANSFERENCIA', 'TARJETA', 'MIXTO', 'PREPAGO'])
 
 // GET /agenda — query params
 export const turnosFiltersSchema = z.object({
@@ -26,6 +27,8 @@ export const createTurnoSchema = z.object({
   horaFin: z.string().optional(),
   esFijo: z.boolean().optional(),
   turnoFijoId: z.string().optional(),
+  prepagado: z.boolean().optional(),
+  paquetePrepagId: z.string().optional(),
   notas: z.string().optional(),
 })
 export type CreateTurnoInput = z.infer<typeof createTurnoSchema>
@@ -49,6 +52,8 @@ export const turnoDataSchema = z.object({
   turnoFijoId: z.string().optional(),
   esReemplazoFijo: z.boolean().optional(),
   turnoOriginalId: z.string().optional(),
+  prepagado: z.boolean().optional(),
+  paquetePrepagId: z.string().optional(),
   notas: z.string().optional(),
   creadoPor: z.string().optional(),
 })
@@ -96,6 +101,8 @@ export const createTurnoFijoSchema = z.object({
   fechasAgendadas: z.array(z.string()).min(1),
   proximaFecha: z.string(),
   diaSemana: z.number().int().min(0).max(6).optional(),
+  prepagado: z.boolean().optional(),
+  paquetePrepagId: z.string().optional(),
 })
 export type CreateTurnoFijoInput = z.infer<typeof createTurnoFijoSchema>
 

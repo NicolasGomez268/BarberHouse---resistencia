@@ -12,6 +12,7 @@ function methodLabel(method: MetodoPago) {
   if (method === 'EFECTIVO') return 'Efectivo'
   if (method === 'TRANSFERENCIA') return 'Transferencia'
   if (method === 'TARJETA') return 'Tarjeta'
+  if (method === 'PREPAGO') return 'Prepago'
   return 'Mixto'
 }
 
@@ -42,10 +43,22 @@ export function CajaDiaria({ data }: { data: CajaDiariaResumen }) {
 
   return (
     <div className="space-y-5">
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-3">
         <PaymentTable title="Servicios por metodo de pago" totals={data.serviciosPorMetodo} />
         <PaymentTable title="Productos por metodo de pago" totals={data.productosPorMetodo} />
+        <PaymentTable title="Paquetes vendidos hoy" totals={data.paquetesPorMetodo} />
       </div>
+
+      {data.paquetesMovimientos.length > 0 ? (
+        <section className="rounded-lg bg-surface p-4">
+          <h3 className="font-bold">Paquetes prepago vendidos</h3>
+          <div className="mt-4 space-y-3">
+            {data.paquetesMovimientos.map((m) => (
+              <MovementRow key={m.id} movement={m} />
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <section className="rounded-lg bg-surface p-4">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -87,7 +100,7 @@ export function CajaDiaria({ data }: { data: CajaDiariaResumen }) {
   )
 }
 
-function PaymentTable({ title, totals }: { title: string; totals: Record<MetodoPago, number> }) {
+function PaymentTable({ title, totals }: { title: string; totals: Record<MetodoPagoCaja, number> }) {
   return (
     <section className="rounded-lg bg-surface p-4">
       <h3 className="font-bold">{title}</h3>
@@ -105,6 +118,8 @@ function PaymentTable({ title, totals }: { title: string; totals: Record<MetodoP
 
 function MovementRow({ movement }: { movement: CajaMovimiento }) {
   const isMixto = movement.metodoPago === 'MIXTO'
+  const isPrepago = movement.metodoPago === 'PREPAGO'
+  const isPaquete = movement.tipo === 'paquete'
   return (
     <div className="grid gap-2 rounded-lg bg-surface-deep p-3 text-sm md:grid-cols-[70px_minmax(0,1fr)_140px_120px] md:items-center">
       <span className="font-bold text-accent">{movement.hora}</span>
@@ -124,6 +139,14 @@ function MovementRow({ movement }: { movement: CajaMovimiento }) {
             <p className="text-xs text-text-secondary">Tr: {money(movement.montoTransferencia)}</p>
           ) : null}
         </div>
+      ) : isPrepago ? (
+        <span className="inline-block rounded-full border border-blue-500/40 bg-blue-500/15 px-2 py-0.5 text-xs font-bold text-blue-400">
+          PREPAGO
+        </span>
+      ) : isPaquete ? (
+        <span className="inline-block rounded-full border border-emerald-500/40 bg-emerald-500/15 px-2 py-0.5 text-xs font-bold text-emerald-400">
+          PAQUETE · {methodLabel(movement.metodoPago)}
+        </span>
       ) : (
         <span className="truncate text-text-secondary">{methodLabel(movement.metodoPago)}</span>
       )}

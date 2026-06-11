@@ -25,6 +25,7 @@ export type CreateAppointmentParams = {
   clienteNombre: string
   clienteTelefono?: string
   sucursalId?: Turno['sucursalId']
+  paquetePrepagId?: string
 }
 
 type BusyRange = {

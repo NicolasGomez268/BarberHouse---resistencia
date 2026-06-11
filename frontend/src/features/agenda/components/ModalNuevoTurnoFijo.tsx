@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
-import type { Barbero, HorarioSemanal, Servicio, SucursalId, Turno, TurnoFijo } from '../../../types'
+import { usePaquetes } from '../../paquetes/hooks/usePaquetes'
+import type { Barbero, HorarioSemanal, PaquetePrepago, Servicio, SucursalId, Turno, TurnoFijo } from '../../../types'
 import { getAvailableSlots } from '../lib/appointments'
 
 type Props = {
@@ -68,12 +69,26 @@ export function ModalNuevoTurnoFijo({ isOpen, onClose, onGuardar, barberos, serv
 
   const [form, setForm] = useState<FormState>(initialForm)
   const [error, setError] = useState<string | null>(null)
+  const [paquetePrepagId, setPaquetePrepagId] = useState('')
+  const [activePaquetes, setActivePaquetes] = useState<PaquetePrepago[]>([])
+  const { buscarPorTelefono } = usePaquetes()
 
   useEffect(() => {
     if (!isOpen) return
     setForm({ ...initialForm, barberoId: activeBarberos[0]?.id ?? '', servicioId: activeServicios[0]?.id ?? '' })
     setError(null)
+    setPaquetePrepagId('')
+    setActivePaquetes([])
   }, [isOpen])
+
+  useEffect(() => {
+    const tel = form.clienteTelefono.trim()
+    if (tel.length < 6) { setActivePaquetes([]); setPaquetePrepagId(''); return }
+    buscarPorTelefono(tel).then((found) => {
+      setActivePaquetes(found)
+      if (found.length === 0) setPaquetePrepagId('')
+    }).catch(() => setActivePaquetes([]))
+  }, [form.clienteTelefono])
 
   const selectedService = useMemo(
     () => servicios.find((s) => s.id === form.servicioId),
@@ -134,6 +149,8 @@ export function ModalNuevoTurnoFijo({ isOpen, onClose, onGuardar, barberos, serv
       diaSemana,
       hora: form.hora,
       fechasAgendadas: [...fechasGeneradas].sort(),
+      prepagado: paquetePrepagId ? true : undefined,
+      paquetePrepagId: paquetePrepagId || undefined,
     })
   }
 
@@ -165,6 +182,22 @@ export function ModalNuevoTurnoFijo({ isOpen, onClose, onGuardar, barberos, serv
             type="tel"
             value={form.clienteTelefono}
           />
+          {activePaquetes.length > 0 ? (
+            <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 px-4 py-3">
+              <p className="text-xs font-bold text-blue-400 mb-2">
+                🎟 Paquete prepago disponible ({activePaquetes[0]!.cantidadTotal - activePaquetes[0]!.cantidadUsada} turnos restantes)
+              </p>
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  checked={paquetePrepagId === activePaquetes[0]!.id}
+                  className="accent-blue-400"
+                  onChange={(e) => setPaquetePrepagId(e.target.checked ? activePaquetes[0]!.id : '')}
+                  type="checkbox"
+                />
+                <span className="text-sm text-blue-300">Usar crédito del paquete para cada turno generado</span>
+              </label>
+            </div>
+          ) : null}
           <div className="grid gap-4 sm:grid-cols-2">
             <select
               className="w-full rounded-lg border border-[#3f3f3f] bg-[#111111] px-4 py-3 text-white"
