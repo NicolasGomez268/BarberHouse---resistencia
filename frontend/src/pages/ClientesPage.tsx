@@ -4,6 +4,22 @@ import type { Cliente, ClienteDetalle, TurnoParaCliente } from '../types'
 
 const CLIENTES_POR_PAGINA = 20
 
+type FiltroVisita = 'todos' | 'recientes' | 'mas30' | 'mas60' | 'sinVisita'
+
+const FILTROS_VISITA: { value: FiltroVisita; label: string }[] = [
+  { value: 'todos', label: 'Todos' },
+  { value: 'recientes', label: 'Últimos 30 días' },
+  { value: 'mas30', label: '+30 días sin venir' },
+  { value: 'mas60', label: '+60 días sin venir' },
+  { value: 'sinVisita', label: 'Sin visitas' },
+]
+
+function diasDesdeUltimaVisita(ultimaVisita?: string): number | null {
+  if (!ultimaVisita) return null
+  const diff = Date.now() - new Date(`${ultimaVisita}T00:00:00`).getTime()
+  return Math.floor(diff / (1000 * 60 * 60 * 24))
+}
+
 const ESTADO_LABEL: Record<string, string> = {
   PENDIENTE: 'Pendiente',
   CONFIRMADO: 'Confirmado',
@@ -36,6 +52,7 @@ export function ClientesPage() {
   const { clientes, loading, error, migrarClientes } = useClientes()
   const { getClienteDetalle } = useClientes()
   const [search, setSearch] = useState('')
+  const [filtroVisita, setFiltroVisita] = useState<FiltroVisita>('todos')
   const [pagina, setPagina] = useState(1)
   const [selectedCliente, setSelectedCliente] = useState<ClienteDetalle | null>(null)
   const [loadingDetalle, setLoadingDetalle] = useState(false)
@@ -43,9 +60,15 @@ export function ClientesPage() {
   const [migracionResult, setMigracionResult] = useState<{ creados: number; actualizados: number } | null>(null)
 
   const normalizado = search.trim().toLowerCase()
-  const filtrados = clientes.filter(
-    (c) => !normalizado || c.nombre.toLowerCase().includes(normalizado) || c.telefono.includes(normalizado),
-  )
+  const filtrados = clientes.filter((c) => {
+    if (normalizado && !c.nombre.toLowerCase().includes(normalizado) && !c.telefono.includes(normalizado)) return false
+    const dias = diasDesdeUltimaVisita(c.ultimaVisita)
+    if (filtroVisita === 'recientes') return dias !== null && dias <= 30
+    if (filtroVisita === 'mas30') return dias !== null && dias > 30
+    if (filtroVisita === 'mas60') return dias !== null && dias > 60
+    if (filtroVisita === 'sinVisita') return dias === null
+    return true
+  })
   const totalPaginas = Math.max(1, Math.ceil(filtrados.length / CLIENTES_POR_PAGINA))
   const paginaSegura = Math.min(pagina, totalPaginas)
   const paginados = filtrados.slice((paginaSegura - 1) * CLIENTES_POR_PAGINA, paginaSegura * CLIENTES_POR_PAGINA)
@@ -71,30 +94,49 @@ export function ClientesPage() {
         <p className="mt-1 text-sm text-[#a0a0a0]">Historial, paquetes y datos de cada cliente.</p>
       </header>
 
-      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <input
-          className="w-full rounded-lg border border-[#2f2f2f] bg-[#111111] px-4 py-3 text-white outline-none transition placeholder:text-[#6b6b6b] focus:border-[#f5c518] sm:max-w-sm"
-          onChange={(e) => { setSearch(e.target.value); setPagina(1) }}
-          placeholder="Buscar por nombre o teléfono..."
-          type="search"
-          value={search}
-        />
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-[#a0a0a0]">{filtrados.length} clientes</span>
-          {migracionResult ? (
-            <span className="text-xs text-emerald-400">
-              ✓ {migracionResult.creados} creados, {migracionResult.actualizados} actualizados
-            </span>
-          ) : (
+      <div className="mb-5 flex flex-col gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <input
+            className="w-full rounded-lg border border-[#2f2f2f] bg-[#111111] px-4 py-3 text-white outline-none transition placeholder:text-[#6b6b6b] focus:border-[#f5c518] sm:max-w-sm"
+            onChange={(e) => { setSearch(e.target.value); setPagina(1) }}
+            placeholder="Buscar por nombre o teléfono..."
+            type="search"
+            value={search}
+          />
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-[#a0a0a0]">{filtrados.length} clientes</span>
+            {migracionResult ? (
+              <span className="text-xs text-emerald-400">
+                ✓ {migracionResult.creados} creados, {migracionResult.actualizados} actualizados
+              </span>
+            ) : (
+              <button
+                className="rounded-lg border border-[#2f2f2f] px-4 py-2 text-sm text-[#a0a0a0] transition hover:border-[#f5c518] hover:text-white disabled:opacity-50"
+                disabled={migrando}
+                onClick={handleMigrar}
+                type="button"
+              >
+                {migrando ? 'Importando...' : 'Importar clientes existentes'}
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          {FILTROS_VISITA.map((f) => (
             <button
-              className="rounded-lg border border-[#2f2f2f] px-4 py-2 text-sm text-[#a0a0a0] transition hover:border-[#f5c518] hover:text-white disabled:opacity-50"
-              disabled={migrando}
-              onClick={handleMigrar}
+              className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${
+                filtroVisita === f.value
+                  ? 'bg-[#f5c518] text-black'
+                  : 'border border-[#2f2f2f] text-[#a0a0a0] hover:border-[#f5c518]/50 hover:text-white'
+              }`}
+              key={f.value}
+              onClick={() => { setFiltroVisita(f.value); setPagina(1) }}
               type="button"
             >
-              {migrando ? 'Importando...' : 'Importar clientes existentes'}
+              {f.label}
             </button>
-          )}
+          ))}
         </div>
       </div>
 
