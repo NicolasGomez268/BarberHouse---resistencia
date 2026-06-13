@@ -1275,7 +1275,15 @@ export function AgendaPage() {
                 >
                   {selectedTurno.prepagado ? 'Marcar asistencia' : 'Asistió'}
                 </button>
-              ) : null}
+              ) : (
+                <button
+                  className="rounded-lg border border-[#2f2f2f] px-4 py-2.5 text-sm font-bold text-[#a0a0a0] transition hover:border-[#f5c518] hover:text-white"
+                  onClick={() => setPaymentTurno(selectedTurno)}
+                  type="button"
+                >
+                  Modificar pago
+                </button>
+              )}
               {selectedTurno.estado !== 'REALIZADO' ? (
                 <button
                   className="rounded-lg border border-[#5f2d2d] bg-[#2a1618] px-4 py-2.5 text-sm font-bold text-[#fca5a5] transition hover:border-[#ef4444]"
