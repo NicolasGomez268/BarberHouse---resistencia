@@ -176,7 +176,7 @@ export class AgendaService {
       if (updateData.sucursalId) cascadeFields['sucursalId'] = updateData.sucursalId
 
       if (Object.keys(cascadeFields).length > 0) {
-        const hoy = new Date().toISOString().slice(0, 10)
+        const hoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' })
         const linkedTurnos = await agendaRepository.findTurnosByFijoId(id)
         const updates = linkedTurnos
           .filter((t) => (t.fecha ?? '') >= hoy && (t.estado === 'PENDIENTE' || t.estado === 'CONFIRMADO'))
@@ -194,7 +194,7 @@ export class AgendaService {
     const fijo = await agendaRepository.findTurnoFijo(id)
     if (!fijo) throw new Error('TURNO_FIJO_NOT_FOUND')
 
-    const hoy = new Date().toISOString().slice(0, 10)
+    const hoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' })
     const linkedTurnos = await agendaRepository.findTurnosByFijoId(id)
     const turnoIdsAEliminar = linkedTurnos
       .filter((t) => (t.fecha ?? '') >= hoy && (t.estado === 'PENDIENTE' || t.estado === 'CONFIRMADO'))
@@ -207,7 +207,7 @@ export class AgendaService {
     const fijo = await agendaRepository.findTurnoFijo(id)
     if (!fijo) throw new Error('TURNO_FIJO_NOT_FOUND')
 
-    const hoy = new Date().toISOString().slice(0, 10)
+    const hoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' })
     const fechasFuturas = fijo.fechasAgendadas.filter((f) => f >= hoy).sort()
 
     const existingTurnos = await agendaRepository.findTurnosByFijoId(id)

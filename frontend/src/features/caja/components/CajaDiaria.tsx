@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import type { ReactNode } from 'react'
 import type { CajaDiariaResumen, CajaMovimiento, MetodoPago, MetodoPagoCaja } from '../../../types'
 
 const methods: MetodoPagoCaja[] = ['EFECTIVO', 'TRANSFERENCIA', 'TARJETA']
@@ -16,7 +17,7 @@ function methodLabel(method: MetodoPago) {
   return 'Mixto'
 }
 
-export function CajaDiaria({ data }: { data: CajaDiariaResumen }) {
+export function CajaDiaria({ data, arqueoSlot }: { data: CajaDiariaResumen; arqueoSlot?: ReactNode }) {
   const [busqueda, setBusqueda] = useState('')
   const [pagina, setPagina] = useState(1)
 
@@ -59,6 +60,8 @@ export function CajaDiaria({ data }: { data: CajaDiariaResumen }) {
           </div>
         </section>
       ) : null}
+
+      {arqueoSlot}
 
       <section className="rounded-lg bg-surface p-4">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">

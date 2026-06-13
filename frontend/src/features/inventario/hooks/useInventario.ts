@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { apiClient } from '../../../shared/api/client'
+import { localDateKey } from '../../../shared/utils/date'
 import type { MetodoPago, Producto, SucursalId, Venta } from '../../../types'
 
 export function useInventario() {
@@ -29,7 +30,7 @@ export function useInventario() {
   }
 
   useEffect(() => {
-    const today = new Date().toISOString().slice(0, 10)
+    const today = localDateKey()
     setLoading(true)
     Promise.all([cargarInventario(), cargarVentas(today)]).finally(() => setLoading(false))
   }, [])

@@ -26,6 +26,7 @@ export type CreateAppointmentParams = {
   clienteTelefono?: string
   sucursalId?: Turno['sucursalId']
   paquetePrepagId?: string
+  fechaPago?: string
 }
 
 type BusyRange = {
@@ -133,34 +134,24 @@ export function getAvailableSlots({
     })
   }
 
-  const sortedBusyRanges = busyRanges
+  const mergedBusyRanges = busyRanges
     .filter((range) => range.end > workStart && range.start < workEnd)
     .sort((first, second) => first.start - second.start)
 
+  const STEP = 30
   const slots: AvailableSlot[] = []
-  let cursor = workStart
 
-  sortedBusyRanges.forEach((range) => {
-    const busyStart = Math.max(range.start, workStart)
-    const busyEnd = Math.min(range.end, workEnd)
-
-    while (cursor + serviceDuration <= busyStart) {
+  for (let cursor = workStart; cursor + serviceDuration <= workEnd; cursor += STEP) {
+    const slotEnd = cursor + serviceDuration
+    const isBlocked = mergedBusyRanges.some(
+      (range) => cursor < range.end && slotEnd > range.start,
+    )
+    if (!isBlocked) {
       slots.push({
         start: minutesToTime(cursor),
-        end: minutesToTime(cursor + serviceDuration),
+        end: minutesToTime(slotEnd),
       })
-      cursor += serviceDuration
     }
-
-    cursor = Math.max(cursor, busyEnd)
-  })
-
-  while (cursor + serviceDuration <= workEnd) {
-    slots.push({
-      start: minutesToTime(cursor),
-      end: minutesToTime(cursor + serviceDuration),
-    })
-    cursor += serviceDuration
   }
 
   return slots

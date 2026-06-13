@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import type React from 'react'
 import type { FormEvent } from 'react'
 import { useInventario } from '../features/inventario/hooks/useInventario'
+import { localDateKey } from '../shared/utils/date'
 import type { MetodoPago, Producto, Venta } from '../types'
 
 type StockTab = 'catalogo' | 'venta' | 'historial'
@@ -99,7 +100,7 @@ export function InventarioPage() {
   const [saleLoading, setSaleLoading] = useState(false)
   const [saleSuccess, setSaleSuccess] = useState(false)
   const [stockModal, setStockModal] = useState<StockModalState | null>(null)
-  const [historyDate, setHistoryDate] = useState(new Date().toISOString().slice(0, 10))
+  const [historyDate, setHistoryDate] = useState(localDateKey())
   const [historyPayment, setHistoryPayment] = useState<MetodoPago | 'TODOS'>('TODOS')
 
   const filteredProducts = useMemo(() => {

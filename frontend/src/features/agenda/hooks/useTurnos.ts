@@ -2,6 +2,7 @@ import { isAxiosError } from 'axios'
 import { useEffect, useState } from 'react'
 import type { CreateAppointmentParams } from '../lib/appointments'
 import { apiClient } from '../../../shared/api/client'
+import { localDateKey } from '../../../shared/utils/date'
 import type { MetodoPago, Servicio, SucursalId, Turno, TurnoFijo } from '../../../types'
 
 function addMinutes(time: string, minutesToAdd: number) {
@@ -11,7 +12,7 @@ function addMinutes(time: string, minutesToAdd: number) {
 }
 
 function getProximaFecha(fechasAgendadas: string[]) {
-  const hoy = new Date().toISOString().slice(0, 10)
+  const hoy = localDateKey()
   const sorted = [...fechasAgendadas].sort()
   return sorted.find((f) => f >= hoy) ?? sorted[0] ?? hoy
 }
@@ -61,6 +62,7 @@ export function useTurnos(servicios: Servicio[] = [], sucursalId?: SucursalId) {
         body['paquetePrepagId'] = params.paquetePrepagId
         body['prepagado'] = true
       }
+      if (params.fechaPago) body['fechaPago'] = params.fechaPago
       const { data } = await apiClient.post<{ turno: Turno }>('/agenda', body)
       setTurnos((prev) => [...prev, data.turno])
     } catch (error) {

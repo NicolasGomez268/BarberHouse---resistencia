@@ -30,6 +30,7 @@ export const createTurnoSchema = z.object({
   prepagado: z.boolean().optional(),
   paquetePrepagId: z.string().optional(),
   notas: z.string().optional(),
+  fechaPago: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
 })
 export type CreateTurnoInput = z.infer<typeof createTurnoSchema>
 
@@ -56,6 +57,7 @@ export const turnoDataSchema = z.object({
   paquetePrepagId: z.string().optional(),
   notas: z.string().optional(),
   creadoPor: z.string().optional(),
+  fechaPago: z.string().optional(),
 })
 export type TurnoData = z.infer<typeof turnoDataSchema>
 

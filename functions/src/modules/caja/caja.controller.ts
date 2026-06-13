@@ -1,6 +1,8 @@
 import type { Request, Response } from 'express'
 import {
   cajaDiariaParamsSchema,
+  createCierreSchema,
+  getCierreParamsSchema,
   liquidacionParamsSchema,
   metricasParamsSchema,
   validarPinSchema,
@@ -65,6 +67,34 @@ export class CajaController {
       response.json(data)
     } catch {
       response.status(500).json({ error: 'Error al calcular las métricas' })
+    }
+  }
+
+  async guardarCierre(request: Request, response: Response) {
+    try {
+      const parsed = createCierreSchema.safeParse(request.body)
+      if (!parsed.success) {
+        response.status(400).json({ error: 'Datos inválidos', details: parsed.error.issues })
+        return
+      }
+      const cierre = await cajaService.guardarCierre(parsed.data)
+      response.json({ cierre })
+    } catch {
+      response.status(500).json({ error: 'Error al guardar el cierre' })
+    }
+  }
+
+  async obtenerCierre(request: Request, response: Response) {
+    try {
+      const parsed = getCierreParamsSchema.safeParse(request.query)
+      if (!parsed.success) {
+        response.status(400).json({ error: 'Parámetros inválidos', details: parsed.error.issues })
+        return
+      }
+      const cierre = await cajaService.obtenerCierre(parsed.data)
+      response.json({ cierre })
+    } catch {
+      response.status(500).json({ error: 'Error al obtener el cierre' })
     }
   }
 }

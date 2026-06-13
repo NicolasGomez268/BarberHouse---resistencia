@@ -127,7 +127,9 @@ export class AgendaRepository {
     const ref = firestore.collection('turnos').doc(id)
     const doc = await ref.get()
     if (!doc.exists) throw new Error('TURNO_NOT_FOUND')
-    const fields: Record<string, unknown> = { estado: 'REALIZADO', metodoPago }
+    const existingFechaPago = doc.data()?.['fechaPago'] as string | undefined
+    const fechaPago = existingFechaPago ?? new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' })
+    const fields: Record<string, unknown> = { estado: 'REALIZADO', metodoPago, fechaPago }
     if (montoEfectivo !== undefined) fields['montoEfectivo'] = montoEfectivo
     if (montoTransferencia !== undefined) fields['montoTransferencia'] = montoTransferencia
     await ref.update(fields)

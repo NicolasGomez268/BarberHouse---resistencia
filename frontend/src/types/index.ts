@@ -81,6 +81,7 @@ export type Turno = {
   cliente?: string
   profesionalId?: ID
   fechaInicio?: string
+  fechaPago?: string
 }
 
 export type TurnoFijo = {
@@ -139,6 +140,20 @@ export type Venta = {
   metodoPago: MetodoPago
   vendedorId: string
   notas?: string
+}
+
+export type CierreDeCaja = {
+  id: string
+  sucursalId: string
+  fecha: string
+  sistemaEfectivo: number
+  sistemaTransferencia: number
+  contadoEfectivo: number
+  contadoTransferencia: number
+  oficialEfectivo: number
+  oficialTransferencia: number
+  diferenciaEfectivo: number
+  diferenciaTransferencia: number
 }
 
 export type MovimientoCaja = {

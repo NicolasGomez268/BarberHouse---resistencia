@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
+import { ArqueoCaja } from '../features/caja/components/ArqueoCaja'
 import { CajaDiaria } from '../features/caja/components/CajaDiaria'
 import { LiquidacionSemanal } from '../features/caja/components/LiquidacionSemanal'
 import { MetricasMensuales } from '../features/caja/components/MetricasMensuales'
 import { PinModal } from '../features/caja/components/PinModal'
 import { useCaja } from '../features/caja/hooks/useCaja'
 import { useCajaDiaria } from '../features/caja/hooks/useCajaDiaria'
+import { localDateKey } from '../shared/utils/date'
 import type { SucursalId } from '../types'
 
 type CajaTab = 'diaria' | 'liquidacion' | 'metricas'
@@ -16,13 +18,13 @@ const tabs: { id: CajaTab; label: string }[] = [
 ]
 
 function todayKey() {
-  return new Date().toISOString().slice(0, 10)
+  return localDateKey()
 }
 
 function daysAgoKey(days: number) {
   const date = new Date()
   date.setDate(date.getDate() - days)
-  return date.toISOString().slice(0, 10)
+  return localDateKey(date)
 }
 
 function money(value: number) {
@@ -211,7 +213,17 @@ function CajaDiariaSucursalCard({
           ) : error || !data ? (
             <p className="py-6 text-center text-red-300">{error ?? 'Error al cargar los datos'}</p>
           ) : (
-            <CajaDiaria data={data} />
+            <CajaDiaria
+              data={data}
+              arqueoSlot={
+                <ArqueoCaja
+                  fecha={fecha}
+                  sucursalId={sucursalId}
+                  sistemaEfectivo={data.serviciosPorMetodo.EFECTIVO + data.productosPorMetodo.EFECTIVO + data.paquetesPorMetodo.EFECTIVO}
+                  sistemaTransferencia={data.serviciosPorMetodo.TRANSFERENCIA + data.productosPorMetodo.TRANSFERENCIA + data.paquetesPorMetodo.TRANSFERENCIA}
+                />
+              }
+            />
           )}
         </div>
       </div>

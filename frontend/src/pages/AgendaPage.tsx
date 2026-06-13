@@ -11,6 +11,7 @@ import { useEquipo } from '../features/equipo/hooks/useEquipo'
 import { useServicios } from '../features/servicios/hooks/useServicios'
 import { usePaquetes } from '../features/paquetes/hooks/usePaquetes'
 import { useAuth } from '../shared/hooks/useAuth'
+import { localDateKey } from '../shared/utils/date'
 import type { MetodoPago, PaquetePrepago, SucursalId, Turno, TurnoFijo } from '../types'
 
 type CalendarDay = {
@@ -28,6 +29,7 @@ type TurnoForm = {
   clienteTelefono: string
   fecha: string
   hora: string
+  fechaPago: string
 }
 
 type ReemplazoFijoForm = {
@@ -181,6 +183,7 @@ export function AgendaPage() {
     clienteTelefono: '',
     fecha: toDateKey(new Date()),
     hora: '09:00',
+    fechaPago: localDateKey(),
   })
 
   function prevMonth() {
@@ -245,7 +248,7 @@ export function AgendaPage() {
         !isNoShowTurno(turno)
       if (turnosListMode === 'selected-day') {
         const dateToShow = selectedDate ?? todayKey
-        return turno.fecha === dateToShow && isActive && !isHistoricalTurno(turno, today)
+        return turno.fecha === dateToShow && isActive
       }
       if (turnosListMode === 'upcoming') {
         const dateToShow = selectedDate ?? todayKey
@@ -334,7 +337,7 @@ export function AgendaPage() {
 
   useEffect(() => {
     if (turnosFijos.length === 0) return
-    const hoy = new Date().toISOString().slice(0, 10)
+    const hoy = localDateKey()
     turnosFijos
       .filter((turnoFijo) => {
         if (generatedFijosRef.current.has(turnoFijo.id)) return false
@@ -383,13 +386,14 @@ export function AgendaPage() {
         clienteNombre: turnoForm.clienteNombre,
         clienteTelefono: turnoForm.clienteTelefono || undefined,
         paquetePrepagId: paquetePrepagId || undefined,
+        fechaPago: turnoForm.fechaPago || undefined,
       })
       setSelectedDate(turnoForm.fecha)
       setTurnosPage(1)
       setIsTurnoModalOpen(false)
       setPaquetePrepagId('')
       setActivePaquetesForClient([])
-      setTurnoForm((current) => ({ ...current, clienteNombre: '', clienteTelefono: '' }))
+      setTurnoForm((current) => ({ ...current, clienteNombre: '', clienteTelefono: '', fechaPago: localDateKey() }))
     } catch (err) {
       setTurnoFormError(err instanceof Error ? err.message : 'No se pudo crear el turno.')
     }
@@ -419,7 +423,7 @@ export function AgendaPage() {
   }
 
   function getProximaFecha(fechasAgendadas: string[]) {
-    const hoy = new Date().toISOString().slice(0, 10)
+    const hoy = localDateKey()
     const fechasOrdenadas = [...fechasAgendadas].sort()
     return fechasOrdenadas.filter((fecha) => fecha >= hoy)[0] ?? fechasOrdenadas[0] ?? hoy
   }
@@ -1253,26 +1257,30 @@ export function AgendaPage() {
               >
                 Recordar
               </a>
-              <button
-                className="rounded-lg border border-[#22543d] bg-[#123524] px-4 py-2.5 text-sm font-bold text-[#86efac] transition hover:border-[#22c55e]"
-                onClick={() => {
-                  if (selectedTurno.prepagado) {
-                    markAsPaid(selectedTurno, 'PREPAGO')
-                  } else {
-                    setPaymentTurno(selectedTurno)
-                  }
-                }}
-                type="button"
-              >
-                {selectedTurno.prepagado ? 'Marcar asistencia' : 'Asistió'}
-              </button>
-              <button
-                className="rounded-lg border border-[#5f2d2d] bg-[#2a1618] px-4 py-2.5 text-sm font-bold text-[#fca5a5] transition hover:border-[#ef4444]"
-                onClick={() => setCancelingTurno(selectedTurno)}
-                type="button"
-              >
-                Cancelar
-              </button>
+              {selectedTurno.estado !== 'REALIZADO' ? (
+                <button
+                  className="rounded-lg border border-[#22543d] bg-[#123524] px-4 py-2.5 text-sm font-bold text-[#86efac] transition hover:border-[#22c55e]"
+                  onClick={() => {
+                    if (selectedTurno.prepagado) {
+                      markAsPaid(selectedTurno, 'PREPAGO')
+                    } else {
+                      setPaymentTurno(selectedTurno)
+                    }
+                  }}
+                  type="button"
+                >
+                  {selectedTurno.prepagado ? 'Marcar asistencia' : 'Asistió'}
+                </button>
+              ) : null}
+              {selectedTurno.estado !== 'REALIZADO' ? (
+                <button
+                  className="rounded-lg border border-[#5f2d2d] bg-[#2a1618] px-4 py-2.5 text-sm font-bold text-[#fca5a5] transition hover:border-[#ef4444]"
+                  onClick={() => setCancelingTurno(selectedTurno)}
+                  type="button"
+                >
+                  Cancelar
+                </button>
+              ) : null}
             </div>
             )}
           </section>
@@ -1636,6 +1644,16 @@ export function AgendaPage() {
                 type="date"
                 value={turnoForm.fecha}
               />
+              <label className="block">
+                <span className="text-sm font-bold text-[#a0a0a0]">Fecha de caja</span>
+                <span className="ml-2 text-xs text-[#6b6b6b]">¿En qué día debe aparecer el pago?</span>
+                <input
+                  className="mt-1 w-full rounded-lg border border-[#3f3f3f] bg-[#111111] px-4 py-3 text-white"
+                  onChange={(event) => setTurnoForm((current) => ({ ...current, fechaPago: event.target.value }))}
+                  type="date"
+                  value={turnoForm.fechaPago}
+                />
+              </label>
               <select
                 className="w-full rounded-lg border border-[#3f3f3f] bg-[#111111] px-4 py-3 text-white"
                 onChange={(event) => setTurnoForm((current) => ({ ...current, barberoId: event.target.value }))}

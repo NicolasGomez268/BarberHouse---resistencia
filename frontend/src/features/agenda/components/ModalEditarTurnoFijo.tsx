@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import type { Barbero, Servicio, SucursalId, Turno, TurnoFijo } from '../../../types'
+import { localDateKey } from '../../../shared/utils/date'
 import { SelectorFechas } from './SelectorFechas'
 
 type Props = {
@@ -57,7 +58,7 @@ export function ModalEditarTurnoFijo({ isOpen, onClose, turnoFijo, onGuardar, ba
 
   const futurePendingCount = useMemo(() => {
     if (!isOpen) return 0
-    const hoy = new Date().toISOString().slice(0, 10)
+    const hoy = localDateKey()
     return turnos.filter(
       (t) =>
         t.turnoFijoId === turnoFijo.id &&
@@ -79,7 +80,7 @@ export function ModalEditarTurnoFijo({ isOpen, onClose, turnoFijo, onGuardar, ba
     if (fechasAgendadas.length === 0) { setError('Selecciona al menos una fecha.'); return }
 
     const fechasOrdenadas = [...fechasAgendadas].sort()
-    const hoy = new Date().toISOString().slice(0, 10)
+    const hoy = localDateKey()
     const proximaFecha = fechasOrdenadas.filter((fecha) => fecha >= hoy)[0] ?? fechasOrdenadas[0]
 
     const datos: Partial<TurnoFijo> = {
@@ -219,7 +220,7 @@ export function ModalEditarTurnoFijo({ isOpen, onClose, turnoFijo, onGuardar, ba
               </select>
             </div>
             <SelectorFechas
-              fechaMinima={new Date().toISOString().slice(0, 10)}
+              fechaMinima={localDateKey()}
               fechasSeleccionadas={fechasAgendadas}
               onChange={setFechasAgendadas}
             />

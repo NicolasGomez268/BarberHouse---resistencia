@@ -1,6 +1,7 @@
 import { paquetesRepository } from '../paquetes/paquetes.repository'
 import { cajaRepository } from './caja.repository'
-import type { CajaDiariaParams, LiquidacionParams, MetricasParams } from './caja.schemas'
+import type { CierreDeCaja } from './caja.repository'
+import type { CajaDiariaParams, CreateCierreInput, GetCierreParams, LiquidacionParams, MetricasParams } from './caja.schemas'
 
 type MetodoPago = 'EFECTIVO' | 'TRANSFERENCIA' | 'TARJETA'
 
@@ -230,6 +231,18 @@ export class CajaService {
       barberos: Array.from(barberosMap.values()).sort((a, b) => b.recaudado - a.recaudado),
       productos: Array.from(productosMap.values()).sort((a, b) => b.unidades - a.unidades),
     }
+  }
+
+  async guardarCierre(input: CreateCierreInput): Promise<CierreDeCaja> {
+    return cajaRepository.upsertCierre({
+      ...input,
+      diferenciaEfectivo: input.contadoEfectivo - input.sistemaEfectivo,
+      diferenciaTransferencia: input.contadoTransferencia - input.sistemaTransferencia,
+    })
+  }
+
+  async obtenerCierre(params: GetCierreParams): Promise<CierreDeCaja | null> {
+    return cajaRepository.findCierre(params.sucursalId, params.fecha)
   }
 }
 
