@@ -149,10 +149,7 @@ export function useTurnos(servicios: Servicio[] = [], sucursalId?: SucursalId) {
     try {
       const { data } = await apiClient.post<{ turnoFijo: TurnoFijo }>('/agenda/fijos', { ...datos, proximaFecha })
       setTurnosFijos((prev) => [...prev, data.turnoFijo])
-      await apiClient.post(`/agenda/fijos/${data.turnoFijo.id}/generar-proximo`)
-      const loadParams = sucursalId ? { sucursalId } : {}
-      const { data: refreshed } = await apiClient.get<{ turnos: Turno[] }>('/agenda', { params: loadParams })
-      setTurnos(refreshed.turnos)
+      // El useEffect en AgendaPage detecta el nuevo fijo y llama generarProximoTurnoFijo una sola vez
     } catch (error) {
       if (isAxiosError(error) && error.response?.status === 409) {
         throw new Error(error.response.data?.error ?? 'Ya existe un turno fijo en ese horario', { cause: error })

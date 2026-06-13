@@ -170,6 +170,15 @@ export class AgendaController {
       handleError(response, error)
     }
   }
+
+  async deduplicarFijos(_request: Request, response: Response) {
+    try {
+      const result = await agendaService.deduplicarTurnosFijos()
+      response.json(result)
+    } catch (error) {
+      handleError(response, error)
+    }
+  }
 }
 
 export const agendaController = new AgendaController()

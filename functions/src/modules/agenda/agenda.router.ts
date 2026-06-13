@@ -9,6 +9,7 @@ agendaRouter.post('/fijos', (req, res) => agendaController.createTurnoFijo(req, 
 agendaRouter.patch('/fijos/:id', (req, res) => agendaController.updateTurnoFijo(req, res))
 agendaRouter.delete('/fijos/:id', (req, res) => agendaController.deleteTurnoFijo(req, res))
 agendaRouter.post('/fijos/:id/generar-proximo', (req, res) => agendaController.generarProximoTurnoFijo(req, res))
+agendaRouter.post('/fijos/deduplicar', (req, res) => agendaController.deduplicarFijos(req, res))
 
 // Turnos
 agendaRouter.get('/', (req, res) => agendaController.listTurnos(req, res))

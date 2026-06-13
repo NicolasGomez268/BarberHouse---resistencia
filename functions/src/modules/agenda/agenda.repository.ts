@@ -165,6 +165,12 @@ export class AgendaRepository {
     await batch.commit()
   }
 
+  async batchDeleteTurnos(turnoIds: string[]): Promise<void> {
+    const batch = firestore.batch()
+    turnoIds.forEach((id) => batch.delete(firestore.collection('turnos').doc(id)))
+    await batch.commit()
+  }
+
   async batchDeleteTurnoFijoYTurnos(fijoId: string, turnoIds: string[]): Promise<void> {
     const batch = firestore.batch()
     batch.delete(firestore.collection('turnosFijos').doc(fijoId))

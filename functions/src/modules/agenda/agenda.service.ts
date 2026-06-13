@@ -207,6 +207,32 @@ export class AgendaService {
     await agendaRepository.batchDeleteTurnoFijoYTurnos(id, turnoIdsAEliminar)
   }
 
+  async deduplicarTurnosFijos(): Promise<{ eliminados: number }> {
+    const todos = await agendaRepository.findTurnos({})
+    const fijoTurnos = todos.filter((t) => t.esFijo && t.turnoFijoId && t.fecha)
+
+    const seen = new Set<string>()
+    const toDelete: string[] = []
+
+    for (const t of fijoTurnos.sort((a, b) => a.id.localeCompare(b.id))) {
+      const key = `${t.turnoFijoId}__${t.fecha}`
+      if (seen.has(key)) {
+        const estado = t.estado
+        if (estado !== 'REALIZADO' && estado !== 'CANCELADO' && estado !== 'NO_ASISTIO') {
+          toDelete.push(t.id)
+        }
+      } else {
+        seen.add(key)
+      }
+    }
+
+    if (toDelete.length > 0) {
+      await agendaRepository.batchDeleteTurnos(toDelete)
+    }
+
+    return { eliminados: toDelete.length }
+  }
+
   async generarProximoTurnoFijo(id: string, creadoPor: string): Promise<TurnoData[]> {
     const fijo = await agendaRepository.findTurnoFijo(id)
     if (!fijo) throw new Error('TURNO_FIJO_NOT_FOUND')
