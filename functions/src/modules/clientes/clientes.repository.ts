@@ -95,12 +95,14 @@ export class ClientesRepository {
 
   async findHistorialByTelefono(telefono: string, nombre?: string): Promise<{ turnos: TurnoParaCliente[]; paquetes: PaqueteParaCliente[] }> {
     const usarNombre = !telefono && !!nombre
+    const nombreLower = (nombre ?? '').toLowerCase()
+
     const [turnosSnap, paquetesSnap, serviciosSnap, barberosSnap] = await Promise.all([
       usarNombre
-        ? firestore.collection('turnos').where('clienteNombre', '==', nombre).get()
+        ? firestore.collection('turnos').get()
         : firestore.collection('turnos').where('clienteTelefono', '==', telefono).get(),
       usarNombre
-        ? firestore.collection('paquetes').where('clienteNombre', '==', nombre).get()
+        ? firestore.collection('paquetes').get()
         : firestore.collection('paquetes').where('clienteTelefono', '==', telefono).get(),
       firestore.collection('servicios').get(),
       firestore.collection('barberos').get(),
@@ -115,7 +117,11 @@ export class ClientesRepository {
     const preciosMap = new Map<string, number>()
     serviciosSnap.docs.forEach((d) => preciosMap.set(d.id, d.data()['precio'] ?? 0))
 
-    const turnos: TurnoParaCliente[] = turnosSnap.docs
+    const turnosDocs = usarNombre
+      ? turnosSnap.docs.filter((doc) => (doc.data()['clienteNombre'] ?? '').toLowerCase() === nombreLower)
+      : turnosSnap.docs
+
+    const turnos: TurnoParaCliente[] = turnosDocs
       .map((doc) => {
         const d = doc.data()
         return {
@@ -133,7 +139,11 @@ export class ClientesRepository {
       })
       .sort((a, b) => b.fecha.localeCompare(a.fecha) || b.hora.localeCompare(a.hora))
 
-    const paquetes: PaqueteParaCliente[] = paquetesSnap.docs
+    const paquetesDocs = usarNombre
+      ? paquetesSnap.docs.filter((doc) => (doc.data()['clienteNombre'] ?? '').toLowerCase() === nombreLower)
+      : paquetesSnap.docs
+
+    const paquetes: PaqueteParaCliente[] = paquetesDocs
       .map((doc) => {
         const d = doc.data()
         const cantidadUsada = d['cantidadUsada'] ?? 0
