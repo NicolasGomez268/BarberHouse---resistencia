@@ -147,6 +147,7 @@ export type Cliente = {
   nombre: string
   telefono: string
   ultimaVisita?: string
+  paquetesActivos?: number
 }
 
 export type TurnoParaCliente = {

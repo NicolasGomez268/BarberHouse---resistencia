@@ -4,7 +4,7 @@ import type { Cliente, ClienteDetalle, TurnoParaCliente } from '../types'
 
 const CLIENTES_POR_PAGINA = 20
 
-type FiltroVisita = 'todos' | 'recientes' | 'mas30' | 'mas60' | 'sinVisita'
+type FiltroVisita = 'todos' | 'recientes' | 'mas30' | 'mas60' | 'sinVisita' | 'conPaquete'
 
 const FILTROS_VISITA: { value: FiltroVisita; label: string }[] = [
   { value: 'todos', label: 'Todos' },
@@ -12,6 +12,7 @@ const FILTROS_VISITA: { value: FiltroVisita; label: string }[] = [
   { value: 'mas30', label: '+30 días sin venir' },
   { value: 'mas60', label: '+60 días sin venir' },
   { value: 'sinVisita', label: 'Sin visitas' },
+  { value: 'conPaquete', label: 'Con paquete activo' },
 ]
 
 function diasDesdeUltimaVisita(ultimaVisita?: string): number | null {
@@ -67,6 +68,7 @@ export function ClientesPage() {
     if (filtroVisita === 'mas30') return dias !== null && dias > 30
     if (filtroVisita === 'mas60') return dias !== null && dias > 60
     if (filtroVisita === 'sinVisita') return dias === null
+    if (filtroVisita === 'conPaquete') return (c.paquetesActivos ?? 0) > 0
     return true
   })
   const totalPaginas = Math.max(1, Math.ceil(filtrados.length / CLIENTES_POR_PAGINA))
@@ -159,7 +161,14 @@ export function ClientesPage() {
                 onClick={() => handleVerDetalle(cliente)}
                 type="button"
               >
-                <p className="font-bold text-white">{cliente.nombre}</p>
+                <div className="flex items-start justify-between gap-2">
+                  <p className="font-bold text-white">{cliente.nombre}</p>
+                  {(cliente.paquetesActivos ?? 0) > 0 ? (
+                    <span className="shrink-0 rounded-full bg-[#f5c518]/10 px-2 py-0.5 text-xs font-bold text-[#f5c518]">
+                      {cliente.paquetesActivos} paquete{(cliente.paquetesActivos ?? 0) > 1 ? 's' : ''}
+                    </span>
+                  ) : null}
+                </div>
                 <p className="mt-1 text-sm text-[#a0a0a0]">{cliente.telefono}</p>
                 {cliente.ultimaVisita ? (
                   <p className="mt-2 text-xs text-[#6b6b6b]">Última visita: {formatFecha(cliente.ultimaVisita)}</p>

@@ -10,5 +10,6 @@ export const clienteDataSchema = z.object({
   nombre: z.string(),
   telefono: z.string(),
   ultimaVisita: z.string().optional(),
+  paquetesActivos: z.number().optional(),
 })
 export type ClienteData = z.infer<typeof clienteDataSchema>

@@ -28,16 +28,32 @@ export type PaqueteParaCliente = {
 
 export class ClientesRepository {
   async findClientes(search?: string): Promise<ClienteData[]> {
-    const snap = await firestore.collection('clientes').orderBy('nombre').get()
-    const docs: ClienteData[] = snap.docs.map((doc) => {
+    const [clientesSnap, paquetesSnap] = await Promise.all([
+      firestore.collection('clientes').orderBy('nombre').get(),
+      firestore.collection('paquetes').get(),
+    ])
+
+    const activosPorTelefono = new Map<string, number>()
+    for (const doc of paquetesSnap.docs) {
       const d = doc.data()
+      const tel: string = d['clienteTelefono'] ?? ''
+      const usado: number = d['cantidadUsada'] ?? 0
+      const total: number = d['cantidadTotal'] ?? 0
+      if (tel && usado < total) activosPorTelefono.set(tel, (activosPorTelefono.get(tel) ?? 0) + 1)
+    }
+
+    const docs: ClienteData[] = clientesSnap.docs.map((doc) => {
+      const d = doc.data()
+      const telefono: string = d['telefono'] ?? ''
       return {
         id: doc.id,
         nombre: d['nombre'] ?? '',
-        telefono: d['telefono'] ?? '',
+        telefono,
         ultimaVisita: d['ultimaVisita'],
+        paquetesActivos: activosPorTelefono.get(telefono) ?? 0,
       }
     })
+
     if (!search) return docs
     const s = search.toLowerCase()
     return docs.filter((c) => c.nombre.toLowerCase().includes(s) || c.telefono.includes(s))
