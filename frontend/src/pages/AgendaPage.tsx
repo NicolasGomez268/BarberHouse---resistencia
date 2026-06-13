@@ -11,8 +11,9 @@ import { useEquipo } from '../features/equipo/hooks/useEquipo'
 import { useServicios } from '../features/servicios/hooks/useServicios'
 import { usePaquetes } from '../features/paquetes/hooks/usePaquetes'
 import { useAuth } from '../shared/hooks/useAuth'
+import { apiClient } from '../shared/api/client'
 import { localDateKey } from '../shared/utils/date'
-import type { MetodoPago, PaquetePrepago, SucursalId, Turno, TurnoFijo } from '../types'
+import type { Cliente, MetodoPago, PaquetePrepago, SucursalId, Turno, TurnoFijo } from '../types'
 
 type CalendarDay = {
   date: Date
@@ -169,6 +170,8 @@ export function AgendaPage() {
   })
   const [editTurnoError, setEditTurnoError] = useState<string | null>(null)
   const [turnoFormError, setTurnoFormError] = useState<string | null>(null)
+  const [clientesList, setClientesList] = useState<Cliente[]>([])
+  const [showClienteSuggestions, setShowClienteSuggestions] = useState(false)
   const [reemplazoFijoForm, setReemplazoFijoForm] = useState<ReemplazoFijoForm>({
     clienteNombre: '',
     clienteTelefono: '',
@@ -784,6 +787,7 @@ export function AgendaPage() {
                   sucursalId: selectedSucursalId,
                 }))
                 setIsTurnoModalOpen(true)
+                apiClient.get<{ clientes: Cliente[] }>('/clientes').then(({ data }) => setClientesList(data.clientes)).catch(() => {})
               }}
               type="button"
             >
@@ -1609,13 +1613,44 @@ export function AgendaPage() {
                 <option value="s1">Sucursal 1</option>
                 <option value="s2">Sucursal 2</option>
               </select>
-              <input
-                className="w-full rounded-lg border border-[#3f3f3f] bg-[#111111] px-4 py-3 text-white"
-                onChange={(event) => setTurnoForm((current) => ({ ...current, clienteNombre: event.target.value }))}
-                placeholder="Nombre del cliente"
-                required
-                value={turnoForm.clienteNombre}
-              />
+              <div className="relative">
+                <input
+                  autoComplete="off"
+                  className="w-full rounded-lg border border-[#3f3f3f] bg-[#111111] px-4 py-3 text-white"
+                  onBlur={() => setTimeout(() => setShowClienteSuggestions(false), 150)}
+                  onChange={(event) => {
+                    setTurnoForm((current) => ({ ...current, clienteNombre: event.target.value }))
+                    setShowClienteSuggestions(event.target.value.trim().length > 0)
+                  }}
+                  onFocus={() => { if (turnoForm.clienteNombre.trim().length > 0) setShowClienteSuggestions(true) }}
+                  placeholder="Nombre del cliente"
+                  required
+                  value={turnoForm.clienteNombre}
+                />
+                {showClienteSuggestions ? (() => {
+                  const q = turnoForm.clienteNombre.trim().toLowerCase()
+                  const sugs = clientesList.filter((c) => c.nombre.toLowerCase().includes(q) || c.telefono.includes(q)).slice(0, 6)
+                  return sugs.length > 0 ? (
+                    <ul className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-lg border border-[#3f3f3f] bg-[#1a1a1a] shadow-xl">
+                      {sugs.map((c) => (
+                        <li key={c.id}>
+                          <button
+                            className="w-full px-4 py-2.5 text-left text-sm hover:bg-[#2f2f2f]"
+                            onClick={() => {
+                              setTurnoForm((current) => ({ ...current, clienteNombre: c.nombre, clienteTelefono: c.telefono ?? '' }))
+                              setShowClienteSuggestions(false)
+                            }}
+                            type="button"
+                          >
+                            <span className="font-bold text-white">{c.nombre}</span>
+                            {c.telefono ? <span className="ml-2 text-[#a0a0a0]">{c.telefono}</span> : null}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null
+                })() : null}
+              </div>
               <input
                 className="w-full rounded-lg border border-[#3f3f3f] bg-[#111111] px-4 py-3 text-white"
                 onChange={(event) => setTurnoForm((current) => ({ ...current, clienteTelefono: event.target.value }))}

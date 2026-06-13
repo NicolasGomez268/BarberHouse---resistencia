@@ -7,6 +7,7 @@ import { equipoRouter } from './modules/equipo/equipo.router'
 import { inventarioRouter } from './modules/inventario/inventario.router'
 import { serviciosRouter } from './modules/servicios/servicios.router'
 import { paquetesRouter } from './modules/paquetes/paquetes.router'
+import { clientesRouter } from './modules/clientes/clientes.router'
 import { authMiddleware } from './shared/middleware/auth.middleware'
 import { errorMiddleware } from './shared/middleware/error.middleware'
 
@@ -30,6 +31,7 @@ app.use('/servicios', serviciosRouter)
 app.use('/inventario', inventarioRouter)
 app.use('/caja', cajaRouter)
 app.use('/paquetes', paquetesRouter)
+app.use('/clientes', clientesRouter)
 
 app.use(errorMiddleware)
 

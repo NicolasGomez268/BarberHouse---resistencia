@@ -1,5 +1,6 @@
 import { ConflictError } from '../../shared/errors'
 import { paquetesRepository } from '../paquetes/paquetes.repository'
+import { clientesRepository } from '../clientes/clientes.repository'
 import { agendaRepository } from './agenda.repository'
 import type { TurnoInsertData } from './agenda.repository'
 import type {
@@ -62,6 +63,9 @@ export class AgendaService {
     await this.checkSlotConflict(input.barberoId, input.fecha, input.hora)
     if (input.paquetePrepagId) {
       await paquetesRepository.decrementarUso(input.paquetePrepagId)
+    }
+    if (input.clienteTelefono && input.clienteNombre) {
+      clientesRepository.upsertClienteByTelefono(input.clienteNombre, input.clienteTelefono, input.fecha).catch(() => {})
     }
     return agendaRepository.insertTurno({
       ...input,

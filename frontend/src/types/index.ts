@@ -142,6 +142,50 @@ export type Venta = {
   notas?: string
 }
 
+export type Cliente = {
+  id: string
+  nombre: string
+  telefono: string
+  ultimaVisita?: string
+}
+
+export type TurnoParaCliente = {
+  id: string
+  fecha: string
+  hora: string
+  servicioNombre: string
+  barberoNombre: string
+  sucursalId: string
+  estado: string
+  metodoPago?: string
+  monto?: number
+  prepagado?: boolean
+}
+
+export type PaqueteParaCliente = {
+  id: string
+  fecha: string
+  cantidadTotal: number
+  cantidadUsada: number
+  precioTotal: number
+  metodoPago: string
+  sucursalId: string
+  activo: boolean
+}
+
+export type ClienteDetalle = {
+  cliente: Cliente
+  turnos: TurnoParaCliente[]
+  paquetes: PaqueteParaCliente[]
+  stats: {
+    totalTurnos: number
+    turnosRealizados: number
+    totalGastado: number
+    ultimaVisita: string | null
+    paquetesActivos: number
+  }
+}
+
 export type CierreDeCaja = {
   id: string
   sucursalId: string

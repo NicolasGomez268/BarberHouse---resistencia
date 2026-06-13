@@ -1,4 +1,4 @@
-import { Banknote, Boxes, CalendarDays, LogOut, Scissors, Users } from 'lucide-react'
+import { Banknote, Boxes, CalendarDays, ContactRound, LogOut, Scissors, Users } from 'lucide-react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import barberHouseLogo from '../../assets/barber-house-logo.svg'
 import { useAuth } from '../hooks/useAuth'
@@ -8,6 +8,7 @@ const allLinks = [
   { to: '/equipo', label: 'Equipo', Icon: Users, requiresCaja: false },
   { to: '/servicios', label: 'Servicios', Icon: Scissors, requiresCaja: false },
   { to: '/inventario', label: 'Stock', Icon: Boxes, requiresCaja: false },
+  { to: '/clientes', label: 'Clientes', Icon: ContactRound, requiresCaja: false },
   { to: '/caja', label: 'Caja', Icon: Banknote, requiresCaja: true },
 ]
 

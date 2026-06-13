@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { AgendaPage } from '../pages/AgendaPage'
 import { CajaPage } from '../pages/CajaPage'
+import { ClientesPage } from '../pages/ClientesPage'
 import { EquipoPage } from '../pages/EquipoPage'
 import { InventarioPage } from '../pages/InventarioPage'
 import { LoginPage } from '../pages/LoginPage'
@@ -22,6 +23,7 @@ export function AppRoutes() {
           <Route path="/equipo" element={<EquipoPage />} />
           <Route path="/servicios" element={<ServiciosPage />} />
           <Route path="/inventario" element={<InventarioPage />} />
+          <Route path="/clientes" element={<ClientesPage />} />
           <Route element={<CajaRoute />}>
             <Route path="/caja" element={<CajaPage />} />
           </Route>
