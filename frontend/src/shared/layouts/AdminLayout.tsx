@@ -66,19 +66,22 @@ export function AdminLayout() {
       <main className="min-h-screen p-4 md:ml-60 md:p-6">
         <Outlet />
       </main>
-      <nav className={`fixed inset-x-4 bottom-4 z-40 grid rounded-[2rem] border border-[#2a2a2a] bg-[#050505]/95 p-2 shadow-2xl shadow-black/50 backdrop-blur md:hidden ${links.length === 4 ? 'grid-cols-4' : 'grid-cols-5'}`}>
+      <nav
+        className={`fixed inset-x-2 bottom-3 z-40 grid rounded-[2rem] border border-[#2a2a2a] bg-[#050505]/95 p-1.5 shadow-2xl shadow-black/50 backdrop-blur md:hidden`}
+        style={{ gridTemplateColumns: `repeat(${links.length}, minmax(0, 1fr))` }}
+      >
         {links.map(({ to, label, Icon }) => (
           <NavLink
             className={({ isActive }) =>
-              `flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-[1.5rem] px-1 py-2 text-[10px] font-semibold transition ${
+              `flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-[1.5rem] px-0.5 py-2 text-[9px] font-semibold transition ${
                 isActive ? 'bg-[#f5c518] text-black' : 'text-[#a0a0a0] hover:text-white'
               }`
             }
             key={to}
             to={to}
           >
-            <Icon aria-hidden="true" className="h-4 w-4" strokeWidth={2.4} />
-            <span className="truncate">{label}</span>
+            <Icon aria-hidden="true" className="h-[14px] w-[14px]" strokeWidth={2.4} />
+            <span className="w-full truncate text-center leading-tight">{label}</span>
           </NavLink>
         ))}
       </nav>
