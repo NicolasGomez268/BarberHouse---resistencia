@@ -136,23 +136,31 @@ export class ClientesRepository {
   async migrarDesdeTurnos(): Promise<{ creados: number; actualizados: number }> {
     const snap = await firestore.collection('turnos').get()
 
-    const clientesPorTelefono = new Map<string, { nombre: string; fecha: string }>()
+    const byPhone = new Map<string, { nombre: string; fecha: string }>()
+    const byName = new Map<string, { nombre: string; fecha: string }>()
+
     for (const doc of snap.docs) {
       const d = doc.data()
-      const telefono: string = d['clienteTelefono'] ?? ''
-      const nombre: string = d['clienteNombre'] ?? ''
+      const telefono: string = (d['clienteTelefono'] ?? '').trim()
+      const nombre: string = (d['clienteNombre'] ?? '').trim()
       const fecha: string = d['fecha'] ?? ''
-      if (!telefono || !nombre) continue
-      const existing = clientesPorTelefono.get(telefono)
-      if (!existing || fecha > existing.fecha) {
-        clientesPorTelefono.set(telefono, { nombre, fecha })
+      if (!nombre) continue
+
+      if (telefono) {
+        const existing = byPhone.get(telefono)
+        if (!existing || fecha > existing.fecha) byPhone.set(telefono, { nombre, fecha })
+      } else {
+        const key = nombre.toLowerCase()
+        const existing = byName.get(key)
+        if (!existing || fecha > existing.fecha) byName.set(key, { nombre, fecha })
       }
     }
 
     let creados = 0
     let actualizados = 0
 
-    for (const [telefono, { nombre, fecha }] of clientesPorTelefono) {
+    // Clientes con teléfono: upsert por teléfono
+    for (const [telefono, { nombre, fecha }] of byPhone) {
       const existing = await this.findClienteByTelefono(telefono)
       if (existing) {
         const updates: Record<string, unknown> = { nombre }
@@ -160,12 +168,21 @@ export class ClientesRepository {
         await existing.ref.update(updates)
         actualizados++
       } else {
-        await firestore.collection('clientes').add({
-          nombre,
-          telefono,
-          ultimaVisita: fecha,
-          creadoAt: FieldValue.serverTimestamp(),
-        })
+        await firestore.collection('clientes').add({ nombre, telefono, ultimaVisita: fecha, creadoAt: FieldValue.serverTimestamp() })
+        creados++
+      }
+    }
+
+    // Clientes sin teléfono: upsert por nombre (evita duplicados)
+    for (const [, { nombre, fecha }] of byName) {
+      const existingSnap = await firestore.collection('clientes').where('nombre', '==', nombre).limit(1).get()
+      if (!existingSnap.empty) {
+        const doc = existingSnap.docs[0]!
+        const existingFecha = doc.data()['ultimaVisita'] ?? ''
+        if (!existingFecha || fecha > existingFecha) await doc.ref.update({ ultimaVisita: fecha })
+        actualizados++
+      } else {
+        await firestore.collection('clientes').add({ nombre, telefono: '', ultimaVisita: fecha, creadoAt: FieldValue.serverTimestamp() })
         creados++
       }
     }
