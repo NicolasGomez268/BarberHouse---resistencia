@@ -66,6 +66,19 @@ export class ClientesRepository {
     return { id: doc.id, nombre: d['nombre'], telefono: d['telefono'], ultimaVisita: d['ultimaVisita'] }
   }
 
+  async updateCliente(id: string, data: { nombre?: string; telefono?: string }): Promise<ClienteData | null> {
+    const ref = firestore.collection('clientes').doc(id)
+    const doc = await ref.get()
+    if (!doc.exists) return null
+    const updates: Record<string, unknown> = {}
+    if (data.nombre !== undefined) updates['nombre'] = data.nombre
+    if (data.telefono !== undefined) updates['telefono'] = data.telefono
+    if (Object.keys(updates).length > 0) await ref.update(updates)
+    const updated = await ref.get()
+    const d = updated.data()!
+    return { id, nombre: d['nombre'], telefono: d['telefono'], ultimaVisita: d['ultimaVisita'] }
+  }
+
   async findClienteByTelefono(telefono: string): Promise<(ClienteData & { ref: FirebaseFirestore.DocumentReference }) | null> {
     const snap = await firestore.collection('clientes').where('telefono', '==', telefono).limit(1).get()
     if (snap.empty) return null

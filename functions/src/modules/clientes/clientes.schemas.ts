@@ -5,6 +5,12 @@ export const listClientesParamsSchema = z.object({
 })
 export type ListClientesParams = z.infer<typeof listClientesParamsSchema>
 
+export const updateClienteSchema = z.object({
+  nombre: z.string().min(1).optional(),
+  telefono: z.string().optional(),
+})
+export type UpdateClienteInput = z.infer<typeof updateClienteSchema>
+
 export const clienteDataSchema = z.object({
   id: z.string(),
   nombre: z.string(),

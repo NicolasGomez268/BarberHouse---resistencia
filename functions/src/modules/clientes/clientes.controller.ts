@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express'
-import { listClientesParamsSchema } from './clientes.schemas'
+import { listClientesParamsSchema, updateClienteSchema } from './clientes.schemas'
 import { clientesService } from './clientes.service'
 
 export class ClientesController {
@@ -26,6 +26,19 @@ export class ClientesController {
       response.json(data)
     } catch {
       response.status(500).json({ error: 'Error al obtener el cliente' })
+    }
+  }
+
+  async update(request: Request, response: Response) {
+    try {
+      const id = request.params['id'] as string
+      const parsed = updateClienteSchema.safeParse(request.body)
+      if (!parsed.success) { response.status(400).json({ error: 'Datos inválidos' }); return }
+      const cliente = await clientesService.updateCliente(id, parsed.data)
+      if (!cliente) { response.status(404).json({ error: 'Cliente no encontrado' }); return }
+      response.json({ cliente })
+    } catch {
+      response.status(500).json({ error: 'Error al actualizar el cliente' })
     }
   }
 

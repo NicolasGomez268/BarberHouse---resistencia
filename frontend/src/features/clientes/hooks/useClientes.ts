@@ -32,6 +32,16 @@ export function useClientes() {
     }
   }
 
+  async function updateCliente(id: string, data: { nombre?: string; telefono?: string }): Promise<Cliente | null> {
+    try {
+      const { data: res } = await apiClient.patch<{ cliente: Cliente }>(`/clientes/${id}`, data)
+      setClientes((prev) => prev.map((c) => (c.id === id ? { ...c, ...res.cliente } : c)))
+      return res.cliente
+    } catch {
+      return null
+    }
+  }
+
   async function migrarClientes(): Promise<{ creados: number; actualizados: number } | null> {
     try {
       const { data } = await apiClient.post<{ creados: number; actualizados: number }>('/clientes/migrar')
@@ -42,5 +52,5 @@ export function useClientes() {
     }
   }
 
-  return { clientes, loading, error, fetchClientes, getClienteDetalle, migrarClientes }
+  return { clientes, loading, error, fetchClientes, getClienteDetalle, migrarClientes, updateCliente }
 }

@@ -50,8 +50,7 @@ function formatFecha(fecha: string) {
 }
 
 export function ClientesPage() {
-  const { clientes, loading, error, migrarClientes } = useClientes()
-  const { getClienteDetalle } = useClientes()
+  const { clientes, loading, error, migrarClientes, getClienteDetalle, updateCliente } = useClientes()
   const [search, setSearch] = useState('')
   const [filtroVisita, setFiltroVisita] = useState<FiltroVisita>('todos')
   const [pagina, setPagina] = useState(1)
@@ -211,6 +210,10 @@ export function ClientesPage() {
               <ClienteDetalleView
                 detalle={selectedCliente}
                 onClose={() => setSelectedCliente(null)}
+                onUpdate={async (id, data) => {
+                  const updated = await updateCliente(id, data)
+                  if (updated) setSelectedCliente((prev) => prev ? { ...prev, cliente: { ...prev.cliente, ...updated } } : prev)
+                }}
               />
             ) : null}
           </div>
@@ -220,34 +223,103 @@ export function ClientesPage() {
   )
 }
 
-function ClienteDetalleView({ detalle, onClose }: { detalle: ClienteDetalle; onClose: () => void }) {
+function ClienteDetalleView({
+  detalle,
+  onClose,
+  onUpdate,
+}: {
+  detalle: ClienteDetalle
+  onClose: () => void
+  onUpdate: (id: string, data: { nombre?: string; telefono?: string }) => Promise<void>
+}) {
   const { cliente, turnos, paquetes, stats } = detalle
   const [tabActiva, setTabActiva] = useState<'turnos' | 'paquetes'>('turnos')
+  const [editando, setEditando] = useState(false)
+  const [editNombre, setEditNombre] = useState(cliente.nombre)
+  const [editTelefono, setEditTelefono] = useState(cliente.telefono)
+  const [guardando, setGuardando] = useState(false)
 
   const paquetesActivos = paquetes.filter((p) => p.activo)
   const paquetesInactivos = paquetes.filter((p) => !p.activo)
 
+  async function handleGuardar() {
+    setGuardando(true)
+    await onUpdate(cliente.id, { nombre: editNombre.trim(), telefono: editTelefono.trim() })
+    setGuardando(false)
+    setEditando(false)
+  }
+
   return (
     <>
-      <div className="flex items-start justify-between border-b border-[#2f2f2f] px-6 py-5">
-        <div>
-          <h2 className="text-2xl font-bold">{cliente.nombre}</h2>
-          <a
-            className="mt-1 text-sm text-[#a0a0a0] hover:text-[#f5c518]"
-            href={`https://wa.me/54${cliente.telefono.replace(/\D/g, '')}`}
-            rel="noreferrer"
-            target="_blank"
-          >
-            {cliente.telefono}
-          </a>
-        </div>
-        <button
-          className="rounded-lg bg-[#111111] px-3 py-2 text-sm text-[#a0a0a0] hover:text-white"
-          onClick={onClose}
-          type="button"
-        >
-          Cerrar
-        </button>
+      <div className="border-b border-[#2f2f2f] px-6 py-5">
+        {editando ? (
+          <div className="space-y-3">
+            <input
+              className="w-full rounded-lg border border-[#2f2f2f] bg-[#111111] px-3 py-2 text-white outline-none focus:border-[#f5c518]"
+              onChange={(e) => setEditNombre(e.target.value)}
+              placeholder="Nombre"
+              value={editNombre}
+            />
+            <input
+              className="w-full rounded-lg border border-[#2f2f2f] bg-[#111111] px-3 py-2 text-white outline-none focus:border-[#f5c518]"
+              onChange={(e) => setEditTelefono(e.target.value)}
+              placeholder="Teléfono"
+              type="tel"
+              value={editTelefono}
+            />
+            <div className="flex gap-2">
+              <button
+                className="rounded-lg bg-[#f5c518] px-4 py-2 text-sm font-bold text-black disabled:opacity-50"
+                disabled={guardando || !editNombre.trim()}
+                onClick={handleGuardar}
+                type="button"
+              >
+                {guardando ? 'Guardando...' : 'Guardar'}
+              </button>
+              <button
+                className="rounded-lg bg-[#111111] px-4 py-2 text-sm text-[#a0a0a0] hover:text-white"
+                onClick={() => { setEditando(false); setEditNombre(cliente.nombre); setEditTelefono(cliente.telefono) }}
+                type="button"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-start justify-between">
+            <div>
+              <h2 className="text-2xl font-bold">{cliente.nombre}</h2>
+              {cliente.telefono ? (
+                <a
+                  className="mt-1 text-sm text-[#a0a0a0] hover:text-[#f5c518]"
+                  href={`https://wa.me/54${cliente.telefono.replace(/\D/g, '')}`}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  {cliente.telefono}
+                </a>
+              ) : (
+                <p className="mt-1 text-sm text-[#6b6b6b]">Sin teléfono</p>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <button
+                className="rounded-lg bg-[#111111] px-3 py-2 text-sm text-[#a0a0a0] hover:text-white"
+                onClick={() => setEditando(true)}
+                type="button"
+              >
+                Editar
+              </button>
+              <button
+                className="rounded-lg bg-[#111111] px-3 py-2 text-sm text-[#a0a0a0] hover:text-white"
+                onClick={onClose}
+                type="button"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Stats */}

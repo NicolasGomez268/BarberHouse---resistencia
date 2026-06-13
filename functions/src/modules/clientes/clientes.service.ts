@@ -1,5 +1,5 @@
 import { clientesRepository } from './clientes.repository'
-import type { ClienteData, ListClientesParams } from './clientes.schemas'
+import type { ClienteData, ListClientesParams, UpdateClienteInput } from './clientes.schemas'
 import type { TurnoParaCliente, PaqueteParaCliente } from './clientes.repository'
 
 type ClienteDetalle = {
@@ -45,6 +45,10 @@ export class ClientesService {
         paquetesActivos,
       },
     }
+  }
+
+  async updateCliente(id: string, input: UpdateClienteInput): Promise<ClienteData | null> {
+    return clientesRepository.updateCliente(id, input)
   }
 
   async upsertCliente(nombre: string, telefono: string, ultimaVisita?: string): Promise<ClienteData> {
