@@ -1244,7 +1244,7 @@ export function AgendaPage() {
                   El cliente fijo no viene — liberar turno
                 </button>
               ) : null}
-              {(selectedTurno.estado === 'PENDIENTE' || selectedTurno.estado === 'CONFIRMADO') ? (
+              {(selectedTurno.estado === 'PENDIENTE' || selectedTurno.estado === 'CONFIRMADO' || selectedTurno.estado === 'REALIZADO') ? (
                 <button
                   className="col-span-full rounded-lg border border-[#2a2a2a] bg-[#111111] px-4 py-3 text-sm font-bold text-white transition hover:border-[#f5c518]/50"
                   onClick={() => openEditTurno(selectedTurno)}
@@ -1292,7 +1292,20 @@ export function AgendaPage() {
                 >
                   Cancelar
                 </button>
-              ) : null}
+              ) : (
+                <button
+                  className="rounded-lg border border-[#5f2d2d] bg-[#2a1618] px-4 py-2.5 text-sm font-bold text-[#fca5a5] transition hover:border-[#ef4444]"
+                  onClick={() => {
+                    if (window.confirm(`¿Anular el turno de ${selectedTurno.clienteNombre}? Se eliminará de la caja del día.`)) {
+                      cancelarTurno(selectedTurno.id)
+                      setSelectedTurno(null)
+                    }
+                  }}
+                  type="button"
+                >
+                  Anular turno
+                </button>
+              )}
             </div>
             )}
           </section>
