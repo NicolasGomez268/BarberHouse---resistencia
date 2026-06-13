@@ -93,10 +93,15 @@ export class ClientesRepository {
     return { id: ref.id, nombre, telefono, ultimaVisita }
   }
 
-  async findHistorialByTelefono(telefono: string): Promise<{ turnos: TurnoParaCliente[]; paquetes: PaqueteParaCliente[] }> {
+  async findHistorialByTelefono(telefono: string, nombre?: string): Promise<{ turnos: TurnoParaCliente[]; paquetes: PaqueteParaCliente[] }> {
+    const usarNombre = !telefono && !!nombre
     const [turnosSnap, paquetesSnap, serviciosSnap, barberosSnap] = await Promise.all([
-      firestore.collection('turnos').where('clienteTelefono', '==', telefono).get(),
-      firestore.collection('paquetes').where('clienteTelefono', '==', telefono).get(),
+      usarNombre
+        ? firestore.collection('turnos').where('clienteNombre', '==', nombre).get()
+        : firestore.collection('turnos').where('clienteTelefono', '==', telefono).get(),
+      usarNombre
+        ? firestore.collection('paquetes').where('clienteNombre', '==', nombre).get()
+        : firestore.collection('paquetes').where('clienteTelefono', '==', telefono).get(),
       firestore.collection('servicios').get(),
       firestore.collection('barberos').get(),
     ])

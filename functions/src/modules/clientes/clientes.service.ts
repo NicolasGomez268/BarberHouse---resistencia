@@ -24,7 +24,7 @@ export class ClientesService {
     const cliente = await clientesRepository.findClienteById(id)
     if (!cliente) return null
 
-    const { turnos, paquetes } = await clientesRepository.findHistorialByTelefono(cliente.telefono)
+    const { turnos, paquetes } = await clientesRepository.findHistorialByTelefono(cliente.telefono, cliente.nombre)
 
     const turnosRealizados = turnos.filter((t) => t.estado === 'REALIZADO' && !t.prepagado)
     const totalGastado = turnosRealizados.reduce((sum, t) => sum + (t.monto ?? 0), 0)
